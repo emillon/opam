@@ -10,7 +10,7 @@
 
 (** OPAM format variable interpolation processor *)
 
-val main: (string -> unit) -> (string -> unit) -> Lexing.lexbuf -> unit
+val main : (string -> unit) -> (string -> unit) -> Lexing.lexbuf -> unit
 (** [main unquoted quoted lexbuf] fully processes the given lexbuf. Strings are
     applied to [unquoted] until a ["] or ["""] sequence is encountered when the
     content within the single or triple-quoted string is applied to [quoted]

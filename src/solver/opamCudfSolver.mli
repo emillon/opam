@@ -12,16 +12,22 @@
     relying on external solvers (aspcud, etc.). Used for calling-back below
     Dose. *)
 
-include module type of struct include OpamCudfSolverSig end
+include module type of struct
+  include OpamCudfSolverSig
+end
 
 module Aspcud : S
+
 module Aspcud_old : S
+
 module Mccs : S
+
 module Packup : S
 
+val default_solver_selection : (module S) list
 (** The list of supported solvers, in decreasing order of preference *)
-val default_solver_selection: (module S) list
 
+val custom_solver : OpamTypes.arg list -> (module S)
 (** Generates a custom solver implementation from a user command. Contains some
     magic:
     - if the command matches one of the predefined ones, the default criteria
@@ -29,15 +35,14 @@ val default_solver_selection: (module S) list
     - if the command is a singleton and matches, it is expanded similarly from
       the pre-defined solvers
 *)
-val custom_solver : OpamTypes.arg list -> (module S)
 
-(** Like [custom_solver], but takes a simple command as a string *)
 val solver_of_string : string -> (module S)
+(** Like [custom_solver], but takes a simple command as a string *)
 
-(** Gets the first present solver from the list. Exits with error if none was found. *)
 val get_solver : ?internal:bool -> (module S) list -> (module S)
+(** Gets the first present solver from the list. Exits with error if none was found. *)
 
 val has_builtin_solver : unit -> bool
 
-(** Gets the full solver name with params *)
 val get_name : (module S) -> string
+(** Gets the full solver name with params *)

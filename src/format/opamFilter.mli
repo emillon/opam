@@ -32,47 +32,48 @@
     [pkg:installed?enable:disable]
 *)
 
-
 open OpamTypes
 
+val to_string : filter -> string
 (** Pretty-print *)
-val to_string: filter -> string
 
+val fold_down_left : ('a -> filter -> 'a) -> 'a -> filter -> 'a
 (** Folds on the tree of a filter *)
-val fold_down_left: ('a -> filter -> 'a) -> 'a -> filter -> 'a
 
+val map_up : (filter -> filter) -> filter -> filter
 (** Maps on all nodes of a filter, bottom-up *)
-val map_up: (filter -> filter) -> filter -> filter
 
+val variables : filter -> full_variable list
 (** Returns all the variables appearing in a filter (including the ones within
     string interpolations *)
-val variables: filter -> full_variable list
 
-(** Type of filter environment. *)
 type env = full_variable -> variable_contents option
+(** Type of filter environment. *)
 
+type fident = name option list * variable * (string * string) option
 (** The type of filter idents with (optionally multiple) qualifying package
     names and optional string converter. Package name [None] encodes the
     self-reference [_] *)
-type fident = name option list * variable * (string * string) option
 
+val map_variables : (full_variable -> full_variable) -> filter -> filter
 (** Maps on all variables appearing in a filter. The case where package
     variables are renamed differently and appear in a filter ident of the form
     [%{pkg1+pkg2:var}%] is not supported and raises [Invalid_argument]. *)
-val map_variables: (full_variable -> full_variable) -> filter -> filter
 
-(** Same limitation as [map_variables] *)
-val map_variables_in_string:
+val map_variables_in_string :
   (full_variable -> full_variable) -> string -> string
+(** Same limitation as [map_variables] *)
 
+val map_variables_in_fident :
+  (full_variable -> full_variable) -> fident -> fident
 (** Does not handle rewriting the variables to different names (which can't be
     expressed with a [fident] anymore), and raises [Invalid_argument] *)
-val map_variables_in_fident:
-  (full_variable -> full_variable) -> fident -> fident
 
+val distribute_negations : ?neg:bool -> filter -> filter
 (** Distributes the negations to apply only to atoms *)
-val distribute_negations: ?neg:bool -> filter -> filter
 
+val expand_string :
+  ?partial:bool -> ?default:(string -> string) -> env -> string -> string
 (** Rewrites string interpolations within a string. [default] is applied to the
     fident string (e.g. what's between [%{] and [}%]) when the expansion is
     undefined. If unspecified, this raises [Failure].
@@ -81,69 +82,73 @@ val distribute_negations: ?neg:bool -> filter -> filter
     expected to return a fident. In this case, the returned string is supposed
     to be expanded again (expansion results are escaped, escapes are otherwise
     kept). This makes the function idempotent *)
-val expand_string:
-  ?partial:bool -> ?default:(string -> string) -> env -> string -> string
 
+val unclosed_expansions : string -> ((int * int) * string) list
 (** Returns the (beginning, end) offsets and substrings of any unclosed [%{]
     expansions *)
-val unclosed_expansions: string -> ((int * int) * string) list
 
+val eval : ?default:variable_contents -> env -> filter -> variable_contents
 (** Computes the value of a filter. May raise [Failure] if [default] isn't
     provided *)
-val eval: ?default:variable_contents -> env -> filter -> variable_contents
 
+val eval_to_bool : ?default:bool -> env -> filter -> bool
 (** Like [eval] but casts the result to a bool. Raises [Invalid_argument] if
     not a valid bool and no default supplied. *)
-val eval_to_bool: ?default:bool -> env -> filter -> bool
 
+val opt_eval_to_bool : env -> filter option -> bool
 (** Same as [eval_to_bool], but takes an option as filter and returns always
     [true] on [None], [false] when the filter is [Undefined]. This is the
     most common behaviour for using "filters" for filtering *)
-val opt_eval_to_bool: env -> filter option -> bool
 
+val eval_to_string : ?default:string -> env -> filter -> string
 (** Like [eval] but casts the result to a string *)
-val eval_to_string: ?default:string -> env -> filter -> string
 
+val partial_eval : env -> filter -> filter
 (** Reduces what can be, keeps the rest unchanged *)
-val partial_eval: env -> filter -> filter
 
+val ident_of_var : full_variable -> fident
 (** Wraps a full_variable into a fident accessor *)
-val ident_of_var: full_variable -> fident
 
+val ident_of_string : string -> fident
 (** A fident accessor directly referring a variable with the given name *)
-val ident_of_string: string -> fident
 
+val ident_value :
+  ?default:variable_contents -> env -> fident -> variable_contents
 (** Resolves a filter ident. Like [eval], may raise Failure if no default is
     provided *)
-val ident_value: ?default:variable_contents -> env -> fident -> variable_contents
 
+val ident_string : ?default:string -> env -> fident -> string
 (** Like [ident_value], but casts the result to a string *)
-val ident_string: ?default:string -> env -> fident -> string
 
+val ident_bool : ?default:bool -> env -> fident -> bool
 (** Like [ident_value], but casts the result to a bool *)
-val ident_bool: ?default:bool -> env -> fident -> bool
 
+val expand_interpolations_in_file : env -> basename -> unit
 (** Rewrites [basename].in to [basename], expanding interpolations.
     If the first line begins ["opam-version:"], assumes that expansion of
     variables within strings should be properly escaped. In particular, this
     means that Windows paths should expand correctly when generating .config
     files. *)
-val expand_interpolations_in_file: env -> basename -> unit
 
-
+val commands : env -> command list -> string list list
 (** Processes filters evaluation in a command list: parameter expansion and
     conditional filtering *)
-val commands: env -> command list -> string list list
 
+val single_command : env -> arg list -> string list
 (** Process a simpler command, without filters *)
-val single_command: env -> arg list -> string list
 
+val commands_variables : command list -> full_variable list
 (** Extracts variables appearing in a list of commands *)
-val commands_variables: command list -> full_variable list
 
+val of_formula : ('a -> filter) -> 'a generic_formula -> filter
 (** Converts a generic formula to a filter, given a converter for atoms *)
-val of_formula: ('a -> filter) -> 'a generic_formula -> filter
 
+val filter_formula :
+  ?default_version:version ->
+  ?default:bool ->
+  env ->
+  filtered_formula ->
+  formula
 (** Resolves the filter in a filtered formula, reducing to a pure formula.
 
     [default] is the assumed result for undefined filters. If a version filter
@@ -152,26 +157,32 @@ val of_formula: ('a -> filter) -> 'a generic_formula -> filter
 
     May raise, as other filter functions, if [default] is not provided and
     filters don't resolve. *)
-val filter_formula:
-  ?default_version:version -> ?default:bool ->
-  env -> filtered_formula -> formula
 
+val partial_filter_formula : env -> filtered_formula -> filtered_formula
 (** Reduces according to what is defined in [env], and returns the simplified
     formula *)
-val partial_filter_formula: env -> filtered_formula -> filtered_formula
 
-(** A more generic formula reduction function, that takes a "partial resolver"
-    as argument *)
-val gen_filter_formula:
+val gen_filter_formula :
   ('a -> [< `True | `False | `Formula of 'b OpamTypes.generic_formula ]) ->
   ('c * 'a) OpamFormula.formula ->
   ('c * 'b OpamTypes.generic_formula) OpamFormula.formula
+(** A more generic formula reduction function, that takes a "partial resolver"
+    as argument *)
 
+val string_of_filtered_formula : filtered_formula -> string
 
-val string_of_filtered_formula: filtered_formula -> string
+val variables_of_filtered_formula : filtered_formula -> full_variable list
 
-val variables_of_filtered_formula: filtered_formula -> full_variable list
-
+val filter_deps :
+  build:bool ->
+  post:bool ->
+  ?test:bool ->
+  ?doc:bool ->
+  ?dev:bool ->
+  ?default_version:version ->
+  ?default:bool ->
+  filtered_formula ->
+  formula
 (** Resolves the build, post, test, doc, dev flags in a filtered formula
     (which is supposed to have been pre-processed to remove switch and global
     variables). [default] determines the behaviour on undefined filters, and the
@@ -179,30 +190,27 @@ val variables_of_filtered_formula: filtered_formula -> full_variable list
     invalid version, it is dropped, or replaced with [default_version] if
     specified. If test, doc or dev are unspecified, they are assumed to be
     filtered out already and encountering them will raise an assert. *)
-val filter_deps:
-  build:bool -> post:bool -> ?test:bool -> ?doc:bool -> ?dev:bool ->
-  ?default_version:version -> ?default:bool ->
-  filtered_formula -> formula
 
+val deps_var_env :
+  build:bool -> post:bool -> ?test:bool -> ?doc:bool -> ?dev:bool -> env
 (** The environment used in resolving the dependency filters, as per
     [filter_deps]. *)
-val deps_var_env:
-  build:bool -> post:bool -> ?test:bool -> ?doc:bool -> ?dev:bool -> env
 
-(** Like [OpamFormula.simplify_version_formula], but on filtered formulas
-    (filters are kept unchanged, but put in front) *)
-val simplify_extended_version_formula:
+val simplify_extended_version_formula :
   filter filter_or_constraint OpamFormula.formula ->
   filter filter_or_constraint OpamFormula.formula option
+(** Like [OpamFormula.simplify_version_formula], but on filtered formulas
+    (filters are kept unchanged, but put in front) *)
 
-val atomise_extended:
+val atomise_extended :
   filtered_formula ->
-  (OpamPackage.Name.t * (filter * (relop * filter) option))
-    OpamFormula.formula
+  (OpamPackage.Name.t * (filter * (relop * filter) option)) OpamFormula.formula
 
 (* Uses [OpamFormula.sort] to sort on names, and sort version formulas with
    [simplify_extended_version_formula]. *)
-val sort_filtered_formula:
-  ((name * filter filter_or_constraint OpamFormula.formula)
-  -> (name * filter filter_or_constraint OpamFormula.formula) -> int)
-  -> filtered_formula -> filtered_formula
+val sort_filtered_formula :
+  (name * filter filter_or_constraint OpamFormula.formula ->
+  name * filter filter_or_constraint OpamFormula.formula ->
+  int) ->
+  filtered_formula ->
+  filtered_formula

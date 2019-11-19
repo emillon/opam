@@ -13,13 +13,11 @@ open OpamFilename.Op
 open OpamProcess.Job.Op
 
 module VCS = struct
-
   let name = `hg
 
   let mark_prefix = "opam-mark"
 
-  let exists repo_root =
-    OpamFilename.exists_dir (repo_root / ".hg")
+  let exists repo_root = OpamFilename.exists_dir (repo_root / ".hg")
 
   let hg repo_root =
     let dir = OpamFilename.Dir.to_string repo_root in
@@ -52,9 +50,9 @@ module VCS = struct
     OpamSystem.raise_on_process_error r;
     match r.OpamProcess.r_stdout with
     | [] -> Done None
-    | full::_ ->
-      if String.length full > 8 then Done (Some (String.sub full 0 8))
-      else Done (Some full)
+    | full :: _ ->
+        if String.length full > 8 then Done (Some (String.sub full 0 8))
+        else Done (Some full)
 
   let reset_tree repo_root repo_url =
     let mark = mark_from_url repo_url in
@@ -67,17 +65,21 @@ module VCS = struct
   let diff repo_root repo_url =
     let patch_file = OpamSystem.temp_file ~auto_clean:false "hg-diff" in
     let finalise () = OpamSystem.remove_file patch_file in
-    OpamProcess.Job.catch (fun e -> finalise (); raise e) @@ fun () ->
+    OpamProcess.Job.catch (fun e ->
+        finalise ();
+        raise e)
+    @@ fun () ->
     let mark = mark_from_url repo_url in
-    hg repo_root ~stdout:patch_file [ "diff"; "--text"; "--subrepos"; "--reverse";
-        "--rev"; mark ] @@> fun r ->
-    if OpamProcess.is_failure r then
-      (finalise ();
-       OpamSystem.internal_error "Hg error: '%s' not found." mark)
-    else if OpamSystem.file_is_empty patch_file then
-      (finalise (); Done None)
-    else
-      Done (Some (OpamFilename.of_string patch_file))
+    hg repo_root ~stdout:patch_file
+      [ "diff"; "--text"; "--subrepos"; "--reverse"; "--rev"; mark ]
+    @@> fun r ->
+    if OpamProcess.is_failure r then (
+      finalise ();
+      OpamSystem.internal_error "Hg error: '%s' not found." mark )
+    else if OpamSystem.file_is_empty patch_file then (
+      finalise ();
+      Done None )
+    else Done (Some (OpamFilename.of_string patch_file))
 
   let is_up_to_date repo_root repo_url =
     let mark = mark_from_url repo_url in
@@ -97,19 +99,19 @@ module VCS = struct
     OpamSystem.raise_on_process_error r;
     match r.OpamProcess.r_stdout with
     | [] -> Done None
-    | marks::_ ->
+    | marks :: _ -> (
         let marks = OpamStd.String.split marks ' ' in
         let marks =
-            List.filter (OpamStd.String.starts_with ~prefix:mark_prefix) marks
+          List.filter (OpamStd.String.starts_with ~prefix:mark_prefix) marks
         in
         match marks with
-        | mark::_ -> Done (Some mark)
-        | [] ->
+        | mark :: _ -> Done (Some mark)
+        | [] -> (
             hg repo_root [ "identify"; "--branch" ] @@> fun r ->
             OpamSystem.raise_on_process_error r;
             match r.OpamProcess.r_stdout with
-            | branch::_ when branch <> "default" -> Done (Some branch)
-            | _ -> Done None
+            | branch :: _ when branch <> "default" -> Done (Some branch)
+            | _ -> Done None ) )
 
   let is_dirty repo_root =
     hg repo_root [ "status"; "--subrepos" ] @@> fun r ->
@@ -120,42 +122,47 @@ module VCS = struct
     hg repo_root [ "status"; "--subrepos" ] @@> fun r ->
     OpamSystem.raise_on_process_error r;
     let files =
-      OpamStd.List.filter_map (fun line ->
+      OpamStd.List.filter_map
+        (fun line ->
           match OpamStd.String.split line ' ' with
-          | ("A" | "M")::file::[] -> Some file
-          | _ -> None) r.OpamProcess.r_stdout
+          | [ ("A" | "M"); file ] -> Some file
+          | _ -> None)
+        r.OpamProcess.r_stdout
     in
     Done files
 
   let get_remote_url ?hash repo_root =
-    hg repo_root [ "paths"; "default" ]
-    @@> function
-    | { OpamProcess.r_code = 0; _ } as r ->
-      (match r.r_stdout with
-       | [url] ->
-         (let url = OpamUrl.parse ~backend:`hg url in
-       if OpamUrl.local_dir url <> None then Done None else
-          let check_remote hash =
-            hg repo_root [ "id"; "-r"; hash; "default" ]
-            @@> fun r ->
-            if OpamProcess.is_success r then
-              Done (Some { url with hash = Some hash })
-              (* default branch of hg is default *)
-            else Done (Some { url with hash = None})
-          in
-          match hash with
-          | None ->
-            (hg repo_root ["branch"] @@> function
-              | { OpamProcess.r_code = 0; OpamProcess.r_stdout = [hash]; _ } ->
-                check_remote hash
-              | { OpamProcess.r_code = 0; _ }
-              | { OpamProcess.r_code = 1; _ } -> Done (Some url)
-              | r -> OpamSystem.process_error r)
-          | Some hash -> check_remote hash)
-       | _ -> Done None)
+    hg repo_root [ "paths"; "default" ] @@> function
+    | { OpamProcess.r_code = 0; _ } as r -> (
+        match r.r_stdout with
+        | [ url ] -> (
+            let url = OpamUrl.parse ~backend:`hg url in
+            if OpamUrl.local_dir url <> None then Done None
+            else
+              let check_remote hash =
+                hg repo_root [ "id"; "-r"; hash; "default" ] @@> fun r ->
+                if OpamProcess.is_success r then
+                  Done (Some { url with hash = Some hash })
+                  (* default branch of hg is default *)
+                else Done (Some { url with hash = None })
+              in
+              match hash with
+              | None -> (
+                  hg repo_root [ "branch" ] @@> function
+                  | {
+                      OpamProcess.r_code = 0;
+                      OpamProcess.r_stdout = [ hash ];
+                      _;
+                    } ->
+                      check_remote hash
+                  | { OpamProcess.r_code = 0; _ }
+                  | { OpamProcess.r_code = 1; _ } ->
+                      Done (Some url)
+                  | r -> OpamSystem.process_error r )
+              | Some hash -> check_remote hash )
+        | _ -> Done None )
     | { OpamProcess.r_code = 1; _ } -> Done None
     | r -> OpamSystem.process_error r
-
 end
 
-module B = OpamVCS.Make(VCS)
+module B = OpamVCS.Make (VCS)

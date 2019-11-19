@@ -14,14 +14,19 @@
     not checked by the module. *)
 
 type t =
-  [ `Null | `Bool of bool | `Float of float| `String of string
-  | `A of t list | `O of (string * t) list ]
+  [ `Null
+  | `Bool of bool
+  | `Float of float
+  | `String of string
+  | `A of t list
+  | `O of (string * t) list ]
 
 type 'a encoder = 'a -> t
+
 type 'a decoder = t -> 'a option
 
 val to_string : t -> string
 
-val append: string -> t -> unit
+val append : string -> t -> unit
 
-val flush: out_channel -> unit
+val flush : out_channel -> unit

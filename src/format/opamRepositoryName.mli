@@ -13,5 +13,5 @@
 
 include OpamStd.ABSTRACT
 
+val default : t
 (** Default repository name *)
-val default: t

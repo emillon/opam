@@ -8,4 +8,4 @@
 (*                                                                        *)
 (**************************************************************************)
 
-val all_backends: (module OpamCudfSolverSig.S) list
+val all_backends : (module OpamCudfSolverSig.S) list

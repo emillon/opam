@@ -14,40 +14,49 @@
 let usage = "opam-check [--root root] [-l label] <package>+"
 
 let label = ref ""
+
 let root_dir_ref = ref ""
-let spec = Arg.align [
-    ("--root", Arg.Set_string root_dir_ref, " Set opam path");
-    ("-l"    , Arg.Set_string label            , " Set a test label");
-    ("--version", Arg.Unit OpamVersion.message , " Display version information");
-  ]
+
+let spec =
+  Arg.align
+    [
+      ("--root", Arg.Set_string root_dir_ref, " Set opam path");
+      ("-l", Arg.Set_string label, " Set a test label");
+      ("--version", Arg.Unit OpamVersion.message, " Display version information");
+    ]
 
 let packages = ref []
+
 let ano x = packages := x :: !packages
 
 let () =
   Arg.parse spec ano usage;
-  let root_dir = match !root_dir_ref with
+  let root_dir =
+    match !root_dir_ref with
     | "" -> None
     | d -> Some (OpamFilename.Dir.of_string d)
   in
-  OpamSystem.init();
-  OpamStd.Config.init();
-  OpamFormatConfig.init();
-  OpamRepositoryConfig.init();
-  OpamStateConfig.init
-    ?root_dir
-    ()
+  OpamSystem.init ();
+  OpamStd.Config.init ();
+  OpamFormatConfig.init ();
+  OpamRepositoryConfig.init ();
+  OpamStateConfig.init ?root_dir ()
 
-
-let packages = OpamPackage.Set.of_list (List.map OpamPackage.of_string !packages)
+let packages =
+  OpamPackage.Set.of_list (List.map OpamPackage.of_string !packages)
 
 let installed () =
   let root = OpamStateConfig.(!r.root_dir) in
   let config = OpamFile.Config.read (OpamPath.config root) in
-  let version = match OpamFile.Config.switch config with
+  let version =
+    match OpamFile.Config.switch config with
     | Some sw -> sw
-    | None -> failwith "No switch set" in
-  let state = OpamFile.SwitchSelections.safe_read (OpamPath.Switch.selections root version) in
+    | None -> failwith "No switch set"
+  in
+  let state =
+    OpamFile.SwitchSelections.safe_read
+      (OpamPath.Switch.selections root version)
+  in
   state.OpamTypes.sel_installed
 
 let () =
@@ -57,7 +66,8 @@ let () =
   let diff = OpamPackage.Set.union diff1 diff2 in
   let label = if !label = "" then "" else Printf.sprintf "[%s] " !label in
   if not (OpamPackage.Set.is_empty diff) then (
-    OpamConsole.error "%swaiting for: %s" label (OpamPackage.Set.to_string diff1);
-    OpamConsole.error "%sgot:         %s" label (OpamPackage.Set.to_string diff2);
-    exit 1
-  )
+    OpamConsole.error "%swaiting for: %s" label
+      (OpamPackage.Set.to_string diff1);
+    OpamConsole.error "%sgot:         %s" label
+      (OpamPackage.Set.to_string diff2);
+    exit 1 )

@@ -13,32 +13,32 @@
 
 include OpamStd.ABSTRACT
 
+val current : t
 (** The current OPAM version *)
-val current: t
 
+val major : t -> t
 (** Extracts the major version *)
-val major: t -> t
 
+val nopatch : t -> t
 (** Major+minor version, strips the patch version *)
-val nopatch: t -> t
 
+val current_nopatch : t
 (** The current OPAM version, truncated (only MAJOR.MINOR) *)
-val current_nopatch: t
 
+val git : unit -> t option
 (** The 'git' version of OPAM *)
-val git: unit -> t option
 
+val set_git : string -> unit
 (** Side-effect to set the git version later in the build *)
-val set_git: string -> unit
 
+val full : unit -> t
 (** The full version (current + git) *)
-val full: unit -> t
 
+val magic : unit -> string
 (** Magic string, always of length 8 *)
-val magic: unit -> string
 
+val message : unit -> unit
 (** Display the version message *)
-val message: unit -> unit
 
+val compare : t -> t -> int
 (** Version comparison *)
-val compare: t -> t -> int

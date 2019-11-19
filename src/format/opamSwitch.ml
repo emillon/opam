@@ -14,14 +14,13 @@ include OpamStd.AbstractString
 let unset = of_string "#unset#"
 
 let is_external s =
-  OpamStd.String.starts_with ~prefix:"." s ||
-  OpamStd.String.contains ~sub:Filename.dir_sep s
+  OpamStd.String.starts_with ~prefix:"." s
+  || OpamStd.String.contains ~sub:Filename.dir_sep s
 
 let external_dirname = "_opam"
 
 let of_string s =
-  if is_external s then OpamFilename.Dir.(to_string (of_string s))
-  else s
+  if is_external s then OpamFilename.Dir.(to_string (of_string s)) else s
 
 let of_dirname d =
   let s = OpamFilename.Dir.to_string d in
@@ -35,6 +34,6 @@ let of_dirname d =
   with Unix.Unix_error _ -> s
 
 let get_root root s =
-  if is_external s
-  then OpamFilename.Dir.of_string (Filename.concat s external_dirname)
+  if is_external s then
+    OpamFilename.Dir.of_string (Filename.concat s external_dirname)
   else OpamFilename.Op.(root / s)

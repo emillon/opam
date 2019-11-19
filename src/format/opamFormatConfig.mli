@@ -12,20 +12,14 @@
     setter) *)
 
 type t = private {
-  strict : bool;
-  (** Fail early with errors in OPAM files *)
-  skip_version_checks : bool;
-  (** Ignore mismatching OPAM versions in files *)
+  strict : bool;  (** Fail early with errors in OPAM files *)
+  skip_version_checks : bool;  (** Ignore mismatching OPAM versions in files *)
   all_parens : bool;
-  (** Affects the OPAM format printer; for backwards-compatibility *)
+      (** Affects the OPAM format printer; for backwards-compatibility *)
 }
 
 type 'a options_fun =
-  ?strict:bool ->
-  ?skip_version_checks:bool ->
-  ?all_parens:bool ->
-  'a
+  ?strict:bool -> ?skip_version_checks:bool -> ?all_parens:bool -> 'a
 
-include OpamStd.Config.Sig
-  with type t := t
-   and type 'a options_fun := 'a options_fun
+include
+  OpamStd.Config.Sig with type t := t and type 'a options_fun := 'a options_fun

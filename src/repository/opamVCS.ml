@@ -14,28 +14,40 @@ open OpamStd.Op
 open OpamProcess.Job.Op
 
 module type VCS = sig
-  val name: OpamUrl.backend
-  val exists: dirname -> bool
-  val init: dirname -> url -> unit OpamProcess.job
-  val fetch: ?cache_dir:dirname -> dirname -> url -> unit OpamProcess.job
-  val reset_tree: dirname -> url -> unit OpamProcess.job
-  val patch_applied: dirname -> url -> unit OpamProcess.job
-  val diff: dirname -> url -> filename option OpamProcess.job
-  val is_up_to_date: dirname -> url -> bool OpamProcess.job
-  val revision: dirname -> string option OpamProcess.job
-  val versioned_files: dirname -> string list OpamProcess.job
-  val vc_dir: dirname -> dirname
-  val current_branch: dirname -> string option OpamProcess.job
-  val is_dirty: dirname -> bool OpamProcess.job
-  val modified_files: dirname -> string list OpamProcess.job
-  val get_remote_url: ?hash:string -> dirname -> url option OpamProcess.job
+  val name : OpamUrl.backend
+
+  val exists : dirname -> bool
+
+  val init : dirname -> url -> unit OpamProcess.job
+
+  val fetch : ?cache_dir:dirname -> dirname -> url -> unit OpamProcess.job
+
+  val reset_tree : dirname -> url -> unit OpamProcess.job
+
+  val patch_applied : dirname -> url -> unit OpamProcess.job
+
+  val diff : dirname -> url -> filename option OpamProcess.job
+
+  val is_up_to_date : dirname -> url -> bool OpamProcess.job
+
+  val revision : dirname -> string option OpamProcess.job
+
+  val versioned_files : dirname -> string list OpamProcess.job
+
+  val vc_dir : dirname -> dirname
+
+  val current_branch : dirname -> string option OpamProcess.job
+
+  val is_dirty : dirname -> bool OpamProcess.job
+
+  val modified_files : dirname -> string list OpamProcess.job
+
+  val get_remote_url : ?hash:string -> dirname -> url option OpamProcess.job
 end
 
-let convert_path =
-  OpamSystem.get_cygpath_function ~command:"rsync"
+let convert_path = OpamSystem.get_cygpath_function ~command:"rsync"
 
-module Make (VCS: VCS) = struct
-
+module Make (VCS : VCS) = struct
   let name = VCS.name
 
   let fetch_repo_update repo_name ?cache_dir repo_root repo_url =
@@ -61,40 +73,39 @@ module Make (VCS: VCS) = struct
       OpamRepositoryBackend.job_text repo_name "sync"
         (VCS.fetch ?cache_dir repo_root repo_url)
       @@+ fun () ->
-      let tmpdir = OpamFilename.Dir.(of_string (to_string repo_root ^".new")) in
+      let tmpdir =
+        OpamFilename.Dir.(of_string (to_string repo_root ^ ".new"))
+      in
       OpamFilename.copy_dir ~src:repo_root ~dst:tmpdir;
-      OpamProcess.Job.catch (fun e -> OpamFilename.rmdir tmpdir; raise e)
+      OpamProcess.Job.catch (fun e ->
+          OpamFilename.rmdir tmpdir;
+          raise e)
       @@ fun () ->
       VCS.reset_tree tmpdir repo_url @@| fun () ->
       OpamRepositoryBackend.Update_full tmpdir
 
   let repo_update_complete dirname url =
-    VCS.patch_applied dirname url @@+ fun () ->
-    Done ()
+    VCS.patch_applied dirname url @@+ fun () -> Done ()
 
   let pull_url ?cache_dir dirname checksum url =
     if checksum <> None then invalid_arg "VC pull_url doesn't allow checksums";
-    OpamProcess.Job.catch
-      (fun e ->
-         OpamConsole.error "Could not synchronize %s from %S:\n%s"
-           (OpamFilename.Dir.to_string dirname)
-           (OpamUrl.to_string url)
-           (match e with Failure fw -> fw | _ -> Printexc.to_string e);
-         Done (Not_available (None, OpamUrl.to_string url)))
+    OpamProcess.Job.catch (fun e ->
+        OpamConsole.error "Could not synchronize %s from %S:\n%s"
+          (OpamFilename.Dir.to_string dirname)
+          (OpamUrl.to_string url)
+          (match e with Failure fw -> fw | _ -> Printexc.to_string e);
+        Done (Not_available (None, OpamUrl.to_string url)))
     @@ fun () ->
     if VCS.exists dirname then
       VCS.fetch ?cache_dir dirname url @@+ fun () ->
       VCS.is_up_to_date dirname url @@+ function
       | true -> Done (Up_to_date None)
-      | false ->
-        VCS.reset_tree dirname url @@+ fun () ->
-        Done (Result None)
-    else
-      (OpamFilename.mkdir dirname;
-       VCS.init dirname url @@+ fun () ->
-       VCS.fetch ?cache_dir dirname url @@+ fun () ->
-       VCS.reset_tree dirname url @@+ fun () ->
-       Done (Result None))
+      | false -> VCS.reset_tree dirname url @@+ fun () -> Done (Result None)
+    else (
+      OpamFilename.mkdir dirname;
+      VCS.init dirname url @@+ fun () ->
+      VCS.fetch ?cache_dir dirname url @@+ fun () ->
+      VCS.reset_tree dirname url @@+ fun () -> Done (Result None) )
 
   let revision repo_root =
     VCS.revision repo_root @@+ fun r ->
@@ -103,63 +114,65 @@ module Make (VCS: VCS) = struct
   let sync_dirty repo_root repo_url =
     pull_url repo_root None repo_url @@+ fun result ->
     match OpamUrl.local_dir repo_url with
-    | None -> Done (result)
+    | None -> Done result
     | Some dir ->
-      VCS.versioned_files dir @@+ fun vc_files ->
-      VCS.modified_files dir @@+ fun vc_dirty_files ->
-      let files =
-        List.map OpamFilename.(remove_prefix dir)
-          (OpamFilename.rec_files dir)
-      in
-      (* Remove non-listed files from destination *)
-      (* fixme: doesn't clean directories *)
-      let fset = OpamStd.String.Set.of_list files in
-      let rm_list =
-        List.filter (fun f ->
-            let basename = OpamFilename.remove_prefix repo_root f in
-            not (OpamFilename.(starts_with (VCS.vc_dir repo_root) f)
-                 || OpamStd.String.Set.mem basename fset))
-          (OpamFilename.rec_files repo_root)
-      in
-      List.iter OpamFilename.remove rm_list;
-      (* We do the list cleaning here becuse of rsync options: `--exclude` need
+        VCS.versioned_files dir @@+ fun vc_files ->
+        VCS.modified_files dir @@+ fun vc_dirty_files ->
+        let files =
+          List.map OpamFilename.(remove_prefix dir) (OpamFilename.rec_files dir)
+        in
+        (* Remove non-listed files from destination *)
+        (* fixme: doesn't clean directories *)
+        let fset = OpamStd.String.Set.of_list files in
+        let rm_list =
+          List.filter
+            (fun f ->
+              let basename = OpamFilename.remove_prefix repo_root f in
+              not
+                ( OpamFilename.(starts_with (VCS.vc_dir repo_root) f)
+                || OpamStd.String.Set.mem basename fset ))
+            (OpamFilename.rec_files repo_root)
+        in
+        List.iter OpamFilename.remove rm_list;
+        (* We do the list cleaning here becuse of rsync options: `--exclude` need
          to be explicitely given directory descendants, e.g `--exclude
          _build/**`
       *)
-      let excluded =
-        (* from [OpamGit.rsync] exclude list *)
-        let exc = [ "_opam"; "_build"; ".git"; "_darcs"; ".hg" ] in
-        OpamStd.String.Set.filter (fun f ->
-            List.exists (fun prefix ->
-                OpamStd.String.starts_with ~prefix f)
-              exc)
-          fset
-      in
-      let vcset = OpamStd.String.Set.of_list vc_files in
-      let vc_dirty_set = OpamStd.String.Set.of_list vc_dirty_files in
-      let final_set =
-        OpamStd.String.Set.Op.(fset -- vcset ++ vc_dirty_set -- excluded)
-      in
-      let stdout_file =
-        let f = OpamSystem.temp_file "rsync-files" in
-        let fd = open_out f in
-        (* Using the set here to keep the list file sorted, it helps rsync *)
-        OpamStd.String.Set.iter (fun s ->
-            output_string fd s; output_char fd '\n')
-          final_set;
-        close_out fd;
-        f
-      in
-      let args = [
-        "--files-from"; (Lazy.force convert_path) stdout_file;
-      ] in
-      OpamLocal.rsync_dirs ~args repo_url repo_root @@+ fun result ->
-      OpamSystem.remove stdout_file;
-      Done (match result with
+        let excluded =
+          (* from [OpamGit.rsync] exclude list *)
+          let exc = [ "_opam"; "_build"; ".git"; "_darcs"; ".hg" ] in
+          OpamStd.String.Set.filter
+            (fun f ->
+              List.exists
+                (fun prefix -> OpamStd.String.starts_with ~prefix f)
+                exc)
+            fset
+        in
+        let vcset = OpamStd.String.Set.of_list vc_files in
+        let vc_dirty_set = OpamStd.String.Set.of_list vc_dirty_files in
+        let final_set =
+          OpamStd.String.Set.Op.(fset -- vcset ++ vc_dirty_set -- excluded)
+        in
+        let stdout_file =
+          let f = OpamSystem.temp_file "rsync-files" in
+          let fd = open_out f in
+          (* Using the set here to keep the list file sorted, it helps rsync *)
+          OpamStd.String.Set.iter
+            (fun s ->
+              output_string fd s;
+              output_char fd '\n')
+            final_set;
+          close_out fd;
+          f
+        in
+        let args = [ "--files-from"; (Lazy.force convert_path) stdout_file ] in
+        OpamLocal.rsync_dirs ~args repo_url repo_root @@+ fun result ->
+        OpamSystem.remove stdout_file;
+        Done
+          ( match result with
           | Up_to_date _ when rm_list = [] -> Up_to_date None
           | Up_to_date _ | Result _ -> Result None
-          | Not_available _ as na -> na)
+          | Not_available _ as na -> na )
 
   let get_remote_url = VCS.get_remote_url
-
 end

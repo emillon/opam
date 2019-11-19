@@ -15,50 +15,50 @@ open Cmdliner
 
 (** {2 Commands} *)
 
-(** Type of commands *)
 type command = unit Term.t * Term.info
+(** Type of commands *)
 
+val commands : command list
 (** The default list of commands *)
-val commands: command list
 
+val default : command
 (** opam *)
-val default: command
 
+val init : command
 (** opam init *)
-val init: command
 
+val list : ?force_search:bool -> unit -> command
 (** opam list *)
-val list: ?force_search:bool -> unit -> command
 
+val show : command
 (** opam show *)
-val show: command
 
+val install : command
 (** opam install *)
-val install: command
 
+val remove : command
 (** opam remove *)
-val remove: command
 
+val reinstall : command
 (** opam reinstall *)
-val reinstall: command
 
+val update : command
 (** opam update *)
-val update: command
 
+val upgrade : command
 (** opam upgrade *)
-val upgrade: command
 
+val config : command
 (** opam config *)
-val config: command
 
+val repository : command
 (** opam repository *)
-val repository: command
 
+val switch : command
 (** opam switch *)
-val switch: command
 
+val pin : ?unpin_only:bool -> unit -> command
 (** opam pin *)
-val pin: ?unpin_only:bool -> unit -> command
 
+val help : command
 (** opam help *)
-val help: command

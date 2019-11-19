@@ -14,58 +14,73 @@
 
 open OpamTypes
 
+val packages : dirname -> package_set
 (** Get the list of packages *)
-val packages: dirname -> package_set
 
+val packages_with_prefixes : dirname -> string option package_map
 (** Get the list of packages (and their possible prefix) *)
-val packages_with_prefixes: dirname -> string option package_map
 
 (** {2 Repository backends} *)
 
+val update : repository -> dirname -> unit OpamProcess.job
 (** Update {i $opam/repo/$repo}. Raises [Failure] in case the update couldn't be
     achieved. *)
-val update: repository -> dirname -> unit OpamProcess.job
 
+val pull_tree :
+  string ->
+  ?cache_dir:dirname ->
+  ?cache_urls:url list ->
+  ?working_dir:bool ->
+  dirname ->
+  OpamHash.t list ->
+  url list ->
+  string download OpamProcess.job
 (** Fetch an URL and put the resulting tree into the supplied directory. The URL
     must either point to a tree (VCS, rsync) or to a known archive type. In case
     of an archive, the cache is used and supplied the hashes verified, then the
     archive uncompressed. In case of a version-controlled URL, it's checked out,
     or synchronised directly if local and [working_dir] was set. *)
-val pull_tree:
-  string -> ?cache_dir:dirname -> ?cache_urls:url list -> ?working_dir:bool ->
-  dirname -> OpamHash.t list -> url list ->
-  string download OpamProcess.job
 
-(** Same as [pull_tree], but for fetching a single file. *)
-val pull_file:
-  string -> ?cache_dir:dirname -> ?cache_urls:url list -> ?silent_hits:bool ->
-  filename -> OpamHash.t list -> url list ->
+val pull_file :
+  string ->
+  ?cache_dir:dirname ->
+  ?cache_urls:url list ->
+  ?silent_hits:bool ->
+  filename ->
+  OpamHash.t list ->
+  url list ->
   unit download OpamProcess.job
+(** Same as [pull_tree], but for fetching a single file. *)
 
+val pull_file_to_cache :
+  string ->
+  cache_dir:dirname ->
+  ?cache_urls:url list ->
+  OpamHash.t list ->
+  url list ->
+  string download OpamProcess.job
 (** Same as [pull_file], but without a destination file: just ensures the file
     is present in the cache. *)
-val pull_file_to_cache:
-  string -> cache_dir:dirname -> ?cache_urls:url list ->
-  OpamHash.t list -> url list -> string download OpamProcess.job
 
+val cache_file : dirname -> OpamHash.t -> filename
 (** The file where the file with the given hash is stored under cache at given
     dirname. *)
-val cache_file: dirname -> OpamHash.t -> filename
 
+val revision : dirname -> url -> version option OpamProcess.job
 (** Get the optional revision associated to a backend (git hash, etc.). *)
-val revision: dirname -> url -> version option OpamProcess.job
 
+val current_branch : url -> string option OpamProcess.job
 (** Get the version-control branch for that url. Only applicable for local,
     version controlled URLs. Returns [None] in other cases. *)
-val current_branch: url -> string option OpamProcess.job
 
+val is_dirty : url -> bool OpamProcess.job
 (** Returns true if the url points to a local, version-controlled directory that
     has uncommitted changes *)
-val is_dirty: url -> bool OpamProcess.job
 
+val find_backend : repository -> (module OpamRepositoryBackend.S)
 (** Find a backend *)
-val find_backend: repository -> (module OpamRepositoryBackend.S)
-val find_backend_by_kind: OpamUrl.backend -> (module OpamRepositoryBackend.S)
 
+val find_backend_by_kind : OpamUrl.backend -> (module OpamRepositoryBackend.S)
+
+val report_fetch_result : package -> string download -> unit download
 (** Prints user messages upon the result of a download *)
-val report_fetch_result: package -> string download -> unit download

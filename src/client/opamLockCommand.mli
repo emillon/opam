@@ -8,18 +8,19 @@
 (*                                                                        *)
 (**************************************************************************)
 
-
 (** Functions handling the "opam lock" command *)
 
 open OpamTypes
 open OpamStateTypes
 
+val select_packages :
+  [ `Atom of atom | `Filename of filename | `Dirname of dirname ] list ->
+  'a switch_state ->
+  'a switch_state * package_set
 (** Select packages to lock. If a package have at least one of its direct
     dependencies not installed in the switch, it is dropped. Returns the state
     with non present packages pinned, and kept packages. *)
-val select_packages:
-  [ `Atom of atom | `Filename of filename | `Dirname of dirname ] list ->
-  'a switch_state -> 'a switch_state * package_set
 
+val lock_opam :
+  ?only_direct:bool -> 'a switch_state -> OpamFile.OPAM.t -> OpamFile.OPAM.t
 (** Returns the locked opam file, according its depends, depopts, and pins. *)
-val lock_opam: ?only_direct:bool -> 'a switch_state -> OpamFile.OPAM.t -> OpamFile.OPAM.t

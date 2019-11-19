@@ -11,13 +11,19 @@
 
 (** Rsync repository backend, for local or ssh sources *)
 
-module B: OpamRepositoryBackend.S
+module B : OpamRepositoryBackend.S
 
 open OpamTypes
 
-val rsync_dirs: ?args:string list -> ?exclude_vcdirs:bool ->
-  OpamUrl.t -> OpamFilename.Dir.t ->
+val rsync_dirs :
+  ?args:string list ->
+  ?exclude_vcdirs:bool ->
+  OpamUrl.t ->
+  OpamFilename.Dir.t ->
   OpamFilename.Dir.t download OpamProcess.job
-val rsync_file: ?args:string list ->
-  OpamUrl.t -> OpamFilename.t ->
+
+val rsync_file :
+  ?args:string list ->
+  OpamUrl.t ->
+  OpamFilename.t ->
   OpamFilename.t download OpamProcess.job

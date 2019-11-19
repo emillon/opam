@@ -13,23 +13,23 @@
 
 include OpamStd.ABSTRACT
 
+val unset : t
 (** System switch name *)
-val unset: t
 
+val is_external : t -> bool
 (** Determines wether this switch is internal (bound to a prefix within the opam
     root) or living somewhere else, in which case its prefix dir is inferred
     from its name using [get_root] *)
-val is_external: t -> bool
 
+val get_root : OpamFilename.Dir.t -> t -> OpamFilename.Dir.t
 (** Returns the root directory of the switch with the given name, assuming the
     given opam root *)
-val get_root: OpamFilename.Dir.t -> t -> OpamFilename.Dir.t
 
+val external_dirname : string
 (** The relative dirname in which the opam switch prefix sits for external
     switches ("_opam") *)
-val external_dirname: string
 
+val of_dirname : OpamFilename.Dir.t -> t
 (** Returns an external switch handle from a directory name. Resolves to the
     destination if [external_dirname] at the given dir is a symlink to another
     [external_dirname]. *)
-val of_dirname: OpamFilename.Dir.t -> t

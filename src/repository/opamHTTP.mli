@@ -11,8 +11,8 @@
 
 (** Main HTTP repository backend, based on Curl *)
 
-module B: OpamRepositoryBackend.S
+module B : OpamRepositoryBackend.S
 
 open OpamTypes
 
-val make_index_tar_gz: dirname -> unit
+val make_index_tar_gz : dirname -> unit

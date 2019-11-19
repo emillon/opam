@@ -9,30 +9,30 @@
 (**************************************************************************)
 
 type criteria_def = {
-  crit_default: string;
-  crit_upgrade: string;
-  crit_fixup: string;
-  crit_best_effort_prefix: string option;
+  crit_default : string;
+  crit_upgrade : string;
+  crit_fixup : string;
+  crit_best_effort_prefix : string option;
 }
 
 exception Timeout
 
 module type S = sig
+  val name : string
 
-  val name: string
-
+  val ext : string option ref
   (** extra configurable solver parameters *)
-  val ext: string option ref
 
-  val is_present: unit -> bool
+  val is_present : unit -> bool
 
-  val command_name: string option
+  val command_name : string option
   (** None means the solver is built-in *)
 
-  val default_criteria: criteria_def
+  val default_criteria : criteria_def
 
-  val call:
-    criteria:string -> ?timeout:float -> Cudf.cudf ->
+  val call :
+    criteria:string ->
+    ?timeout:float ->
+    Cudf.cudf ->
     Cudf.preamble option * Cudf.universe
-
 end

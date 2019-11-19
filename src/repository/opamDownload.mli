@@ -13,19 +13,27 @@
 
 exception Download_fail of string option * string
 
+val download :
+  ?quiet:bool ->
+  ?validate:bool ->
+  overwrite:bool ->
+  ?compress:bool ->
+  ?checksum:OpamHash.t ->
+  OpamUrl.t ->
+  OpamFilename.Dir.t ->
+  OpamFilename.t OpamProcess.job
 (** downloads a file from an URL, using Curl, Wget, or a custom configured
     tool, to the given directory. Returns the downloaded filename.
     @raise Failure if the download failed or if the checksum is specified and
     doesn't match*)
-val download:
-  ?quiet:bool -> ?validate:bool -> overwrite:bool -> ?compress:bool ->
-  ?checksum:OpamHash.t ->
-  OpamUrl.t -> OpamFilename.Dir.t ->
-  OpamFilename.t OpamProcess.job
 
-(** As [download], but with a specified output filename. *)
-val download_as:
-  ?quiet:bool -> ?validate:bool -> overwrite:bool -> ?compress:bool ->
+val download_as :
+  ?quiet:bool ->
+  ?validate:bool ->
+  overwrite:bool ->
+  ?compress:bool ->
   ?checksum:OpamHash.t ->
-  OpamUrl.t -> OpamFilename.t ->
+  OpamUrl.t ->
+  OpamFilename.t ->
   unit OpamProcess.job
+(** As [download], but with a specified output filename. *)

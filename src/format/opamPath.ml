@@ -20,10 +20,11 @@ let ( /- ) dir f = OpamFile.make (dir // f)
 let config t = t /- "config"
 
 let init_config_files () =
-  List.map OpamFile.make [
-    OpamFilename.Dir.of_string (OpamStd.Sys.etc ()) // "opamrc";
-    OpamFilename.Dir.of_string (OpamStd.Sys.home ()) // ".opamrc";
-  ]
+  List.map OpamFile.make
+    [
+      OpamFilename.Dir.of_string (OpamStd.Sys.etc ()) // "opamrc";
+      OpamFilename.Dir.of_string (OpamStd.Sys.home ()) // ".opamrc";
+    ]
 
 let state_cache t = t / "repo" // "state.cache"
 
@@ -46,11 +47,14 @@ let hooks_dir t = init t / "hooks"
 let log t = t / "log"
 
 let backup_file =
-  let file = lazy Unix.(
-      let tm = gmtime (Unix.gettimeofday ()) in
-      Printf.sprintf "state-%04d%02d%02d%02d%02d%02d.export"
-        (tm.tm_year+1900) (tm.tm_mon+1) tm.tm_mday tm.tm_hour tm.tm_min tm.tm_sec
-    ) in
+  let file =
+    lazy
+      Unix.(
+        let tm = gmtime (Unix.gettimeofday ()) in
+        Printf.sprintf "state-%04d%02d%02d%02d%02d%02d.export"
+          (tm.tm_year + 1900) (tm.tm_mon + 1) tm.tm_mday tm.tm_hour tm.tm_min
+          tm.tm_sec)
+  in
   fun () -> Lazy.force file
 
 let backup_dir t = t / "backup"
@@ -75,7 +79,6 @@ let plugin t name =
   plugins t / sname
 
 module Switch = struct
-
   let root t a = OpamSwitch.get_root t a
 
   (** Internal files and dirs with static location *)
@@ -102,9 +105,11 @@ module Switch = struct
 
   let install_dir t a = meta t a / "install"
 
-  let install t a n = install_dir t a /- (OpamPackage.Name.to_string n ^ ".install")
+  let install t a n =
+    install_dir t a /- (OpamPackage.Name.to_string n ^ ".install")
 
-  let changes t a n = install_dir t a /- (OpamPackage.Name.to_string n ^ ".changes")
+  let changes t a n =
+    install_dir t a /- (OpamPackage.Name.to_string n ^ ".changes")
 
   let reinstall t a = meta t a /- "reinstall"
 
@@ -112,14 +117,14 @@ module Switch = struct
 
   let config_dir t a = meta t a / "config"
 
-  let config t a n =
-    config_dir t a /- (OpamPackage.Name.to_string n ^ ".config")
+  let config t a n = config_dir t a /- (OpamPackage.Name.to_string n ^ ".config")
 
   let sources_dir t a = meta t a / "sources"
 
   let sources t a nv = sources_dir t a / OpamPackage.to_string nv
 
-  let pinned_package t a name = sources_dir t a / OpamPackage.Name.to_string name
+  let pinned_package t a name =
+    sources_dir t a / OpamPackage.Name.to_string name
 
   let env_filename = "environment"
 
@@ -132,14 +137,11 @@ module Switch = struct
   let installed_package_dir t a nv =
     installed_opams t a / OpamPackage.to_string nv
 
-  let installed_opam t a nv =
-    installed_package_dir t a nv /- "opam"
+  let installed_opam t a nv = installed_package_dir t a nv /- "opam"
 
-  let installed_opam_files_dir t a nv =
-    installed_package_dir t a nv / "files"
+  let installed_opam_files_dir t a nv = installed_package_dir t a nv / "files"
 
   module Default = struct
-
     (** Visible files that can be redirected using
         [config/global-config.config] *)
 
@@ -171,7 +173,6 @@ module Switch = struct
     let bin t a = root t a / "bin"
 
     let sbin t a = root t a / "sbin"
-
   end
 
   let lookup stdpath relative_to default config =
@@ -199,9 +200,7 @@ module Switch = struct
 
   let man_dir ?num t a c =
     let base = lookup Man (prefix t a c) "man" c in
-    match num with
-    | None -> base
-    | Some n -> base / ("man" ^ n)
+    match num with None -> base | Some n -> base / ("man" ^ n)
 
   let share_dir t a c = lookup Share (prefix t a c) "share" c
 
@@ -228,7 +227,6 @@ module Switch = struct
     | Stublibs -> stublibs t a c
 
   module Overlay = struct
-
     let dir t a = meta t a / "overlay"
 
     let package t a n = dir t a / OpamPackage.Name.to_string n
@@ -242,16 +240,13 @@ module Switch = struct
     let descr t a n = package t a n /- "descr"
 
     let files t a n = package t a n / "files"
-
   end
 end
 
 module Builddir = struct
-
   let install builddir nv =
     builddir /- (OpamPackage.Name.to_string nv.name ^ ".install")
 
   let config builddir nv =
     builddir /- (OpamPackage.Name.to_string nv.name ^ ".config")
-
 end

@@ -12,11 +12,19 @@
 (** (generated) Shell config scripts as OCaml strings *)
 
 val complete : string
+
 val complete_zsh : string
+
 val prompt : string
+
 val bwrap : string
+
 val sandbox_exec : string
+
 val env_hook : string
+
 val env_hook_zsh : string
+
 val env_hook_csh : string
+
 val env_hook_fish : string

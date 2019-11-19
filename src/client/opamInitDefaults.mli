@@ -14,13 +14,13 @@
 
 open OpamTypes
 
+val repository_url : url
 (** Url of the default Opam repository *)
-val repository_url: url
 
-val default_compiler: formula
+val default_compiler : formula
 
-val eval_variables: (OpamVariable.t * string list * string) list
+val eval_variables : (OpamVariable.t * string list * string) list
 
+val init_config : ?sandboxing:bool -> unit -> OpamFile.InitConfig.t
 (** Default initial configuration file for use by [opam init] if nothing is
     supplied. *)
-val init_config: ?sandboxing:bool -> unit -> OpamFile.InitConfig.t

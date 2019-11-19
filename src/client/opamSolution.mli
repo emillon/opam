@@ -14,8 +14,7 @@
 open OpamTypes
 open OpamStateTypes
 
-(** Resolve an user request *)
-val resolve:
+val resolve :
   'a switch_state ->
   user_action ->
   orphans:package_set ->
@@ -23,12 +22,9 @@ val resolve:
   requested:name_set ->
   atom request ->
   (OpamSolver.solution, OpamCudf.conflict) result
+(** Resolve an user request *)
 
-(** Apply a solution returned by the solver. If [ask] is not specified, prompts
-    the user whenever the solution isn't obvious from the request. [add_roots]
-    defaults to the set of newly installed packages that are part of
-    [requested]. *)
-val apply:
+val apply :
   ?ask:bool ->
   rw switch_state ->
   requested:OpamPackage.Name.Set.t ->
@@ -36,12 +32,12 @@ val apply:
   ?assume_built:bool ->
   OpamSolver.solution ->
   rw switch_state * solution_result
+(** Apply a solution returned by the solver. If [ask] is not specified, prompts
+    the user whenever the solution isn't obvious from the request. [add_roots]
+    defaults to the set of newly installed packages that are part of
+    [requested]. *)
 
-(** Call the solver to get a solution and then call [apply]. If [ask] is not
-    specified, prompts the user whenever the solution isn't obvious from the
-    request. [add_roots] defaults to the set of newly installed packages that
-    are part of [requested]. *)
-val resolve_and_apply:
+val resolve_and_apply :
   ?ask:bool ->
   rw switch_state ->
   user_action ->
@@ -52,48 +48,51 @@ val resolve_and_apply:
   ?assume_built:bool ->
   atom request ->
   rw switch_state * (solution_result, OpamCudf.conflict) result
+(** Call the solver to get a solution and then call [apply]. If [ask] is not
+    specified, prompts the user whenever the solution isn't obvious from the
+    request. [add_roots] defaults to the set of newly installed packages that
+    are part of [requested]. *)
 
+val check_solution :
+  ?quiet:bool -> 'a switch_state -> (solution_result, 'conflict) result -> unit
 (** Raise an error if no solution is found or in case of error. Unless [quiet]
     is set, print a message indicating that nothing was done on an empty
     solution. *)
-val check_solution:
-  ?quiet:bool -> 'a switch_state ->
-  (solution_result, 'conflict) result ->
-  unit
 
 (** {2 Atoms} *)
 
+val eq_atom : name -> version -> atom
 (** Return an atom with a strict version constraint *)
-val eq_atom: name -> version -> atom
 
+val atom_of_package : package -> atom
 (** Return a simple atom, with no version constraint, from a package*)
-val atom_of_package: package -> atom
 
+val eq_atom_of_package : package -> atom
 (** Returns an atom with a strict version constraint from a package *)
-val eq_atom_of_package: package -> atom
 
+val atoms_of_packages : package_set -> atom list
 (** Return a list of simple atoms (ie. with no version constraints)
     from a set of packages *)
-val atoms_of_packages: package_set -> atom list
 
+val eq_atoms_of_packages : package_set -> atom list
 (** Return a list of constrained atoms from a set of packages *)
-val eq_atoms_of_packages: package_set -> atom list
 
+val check_availability :
+  ?permissive:bool -> 'a switch_state -> OpamPackage.Set.t -> atom list -> unit
 (** Checks that the atoms can possibly be verified (individually) in a package
     set. Displays an error and exits otherwise. [permissive] just changes the
     error message. *)
-val check_availability: ?permissive: bool ->
-  'a switch_state -> OpamPackage.Set.t -> atom list -> unit
 
+val fuzzy_name : 'a switch_state -> name -> name
 (** Matches package names to their existing counterparts, up to capitalisation.
     If no match exists, returns the name unchanged. *)
-val fuzzy_name: 'a switch_state -> name -> name
 
+val sanitize_atom_list :
+  ?permissive:bool -> 'a switch_state -> atom list -> atom list
 (** Takes a "raw" list of atoms (from the user), and match it to existing
     packages. Match packages with the wrong capitalisation, and raises errors on
     non-existing packages, and unavailable ones unless [permissive] is set.
     Exits with a message on error. *)
-val sanitize_atom_list: ?permissive: bool -> 'a switch_state -> atom list -> atom list
 
+val sum : stats -> int
 (** {2 Stats} *)
-val sum: stats -> int

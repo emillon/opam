@@ -9,8 +9,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
-val admin_command_doc: string
+val admin_command_doc : string
 
-val admin_subcommands: (unit Cmdliner.Term.t * Cmdliner.Term.info) list
+val admin_subcommands : (unit Cmdliner.Term.t * Cmdliner.Term.info) list
 
-val default_subcommand: unit Cmdliner.Term.t * Cmdliner.Term.info
+val default_subcommand : unit Cmdliner.Term.t * Cmdliner.Term.info

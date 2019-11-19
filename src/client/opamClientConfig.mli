@@ -12,22 +12,22 @@
     initialisation), plus helper for global setup *)
 
 type t = private {
-  print_stats: bool;
-  pin_kind_auto: bool;
-  autoremove: bool;
-  editor: string;
-  keep_build_dir: bool;
-  reuse_build_dir: bool;
-  inplace_build: bool;
-  working_dir: bool;
-  drop_working_dir: bool;
-  ignore_pin_depends: bool;
-  show: bool;
-  fake: bool;
-  skip_dev_update: bool;
-  json_out: string option;
-  root_is_ok: bool;
-  no_auto_upgrade: bool;
+  print_stats : bool;
+  pin_kind_auto : bool;
+  autoremove : bool;
+  editor : string;
+  keep_build_dir : bool;
+  reuse_build_dir : bool;
+  inplace_build : bool;
+  working_dir : bool;
+  drop_working_dir : bool;
+  ignore_pin_depends : bool;
+  show : bool;
+  fake : bool;
+  skip_dev_update : bool;
+  json_out : string option;
+  root_is_ok : bool;
+  no_auto_upgrade : bool;
 }
 
 type 'a options_fun =
@@ -35,7 +35,6 @@ type 'a options_fun =
   ?pin_kind_auto:bool ->
   ?autoremove:bool ->
   ?editor:string ->
-
   ?keep_build_dir:bool ->
   ?reuse_build_dir:bool ->
   ?inplace_build:bool ->
@@ -49,18 +48,16 @@ type 'a options_fun =
   ?root_is_ok:bool ->
   ?no_auto_upgrade:bool ->
   'a
-  (* constraint 'a = 'b -> 'c *)
 
-include OpamStd.Config.Sig
-  with type t := t
-   and type 'a options_fun := 'a options_fun
+(* constraint 'a = 'b -> 'c *)
 
+include
+  OpamStd.Config.Sig with type t := t and type 'a options_fun := 'a options_fun
+
+val search_files : string list
 (** Extra files included in [opam search] *)
-val search_files: string list
 
-(** Load the global configuration file (opamroot/config) and initialise all opam
-    sub-libraries, overriding the given arguments *)
-val opam_init:
+val opam_init :
   ?root_dir:OpamTypes.dirname ->
   ?strict:bool ->
   ?skip_version_checks:bool ->
@@ -100,7 +97,7 @@ val opam_init:
   ?solver_preferences_default:string option Lazy.t ->
   ?solver_preferences_upgrade:string option Lazy.t ->
   ?solver_preferences_fixup:string option Lazy.t ->
-  ?solver_preferences_best_effort_prefix: string option Lazy.t ->
+  ?solver_preferences_best_effort_prefix:string option Lazy.t ->
   ?solver_timeout:float option ->
   ?download_tool:(OpamTypes.arg list * OpamRepositoryConfig.dl_tool_kind) Lazy.t ->
   ?validation_hook:OpamTypes.arg list option ->
@@ -119,4 +116,7 @@ val opam_init:
   ?merged_output:bool ->
   ?use_openssl:bool ->
   ?precise_tracking:bool ->
-  unit -> unit
+  unit ->
+  unit
+(** Load the global configuration file (opamroot/config) and initialise all opam
+    sub-libraries, overriding the given arguments *)

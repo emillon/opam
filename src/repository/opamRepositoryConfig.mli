@@ -11,15 +11,15 @@
 (** Configuration options for the repository lib (record, global reference,
     setter, initialisation) *)
 
+type dl_tool_kind = [ `Curl | `Default ]
 (** Toggles parsing of the tool's output to detect errors
     (curl returns 0 on a 404) *)
-type dl_tool_kind = [ `Curl | `Default ]
 
 type t = {
-  download_tool: (OpamTypes.arg list * dl_tool_kind) Lazy.t;
-  validation_hook: OpamTypes.arg list option;
-  retries: int;
-  force_checksums: bool option;
+  download_tool : (OpamTypes.arg list * dl_tool_kind) Lazy.t;
+  validation_hook : OpamTypes.arg list option;
+  retries : int;
+  force_checksums : bool option;
 }
 
 type 'a options_fun =
@@ -29,6 +29,5 @@ type 'a options_fun =
   ?force_checksums:bool option ->
   'a
 
-include OpamStd.Config.Sig
-  with type t := t
-   and type 'a options_fun := 'a options_fun
+include
+  OpamStd.Config.Sig with type t := t and type 'a options_fun := 'a options_fun

@@ -15,124 +15,122 @@
 (** {2 Package name and versions} *)
 
 (** Versions *)
-module Version: sig
-
+module Version : sig
   include OpamStd.ABSTRACT
 
+  val compare : t -> t -> int
   (** Compare two versions using the Debian version scheme *)
-  val compare: t -> t -> int
 
+  val equal : t -> t -> bool
   (** Are two package versions equal? *)
-  val equal: t -> t -> bool
 end
 
 (** Names *)
-module Name: sig
+module Name : sig
   include OpamStd.ABSTRACT
 
+  val compare : t -> t -> int
   (** Compare two package names *)
-  val compare: t -> t -> int
 
+  val equal : t -> t -> bool
   (** Are two package names equal? *)
-  val equal: t -> t -> bool
 end
 
-type t = private {
-  name: Name.t;
-  version: Version.t;
-}
+type t = private { name : Name.t; version : Version.t }
 
-(** Package (name x version) pairs *)
 include OpamStd.ABSTRACT with type t := t
+(** Package (name x version) pairs *)
 
+val name : t -> Name.t
 (** Return the package name *)
-val name: t -> Name.t
 
+val of_string_opt : string -> t option
 (** Return None if [nv] is not a valid package name *)
-val of_string_opt: string -> t option
 
+val version : t -> Version.t
 (** Return the version name *)
-val version: t -> Version.t
 
+val create : Name.t -> Version.t -> t
 (** Create a new pair (name x version) *)
-val create: Name.t -> Version.t -> t
 
+val name_to_string : t -> string
 (** To fit in the GenericPackage type, for generic display functions *)
-val name_to_string: t -> string
-val version_to_string: t -> string
 
+val version_to_string : t -> string
+
+val of_filename : OpamFilename.t -> t option
 (** Guess the package name from a filename. This function extracts
     [name] and [version] from {i /path/to/$name.$version/opam}, or
     {i /path/to/$name.$version.opam} *)
-val of_filename: OpamFilename.t -> t option
 
+val of_dirname : OpamFilename.Dir.t -> t option
 (** Guess the package name from a directory name. This function extracts {i
     $name} and {i $version} from {i /path/to/$name.$version/} *)
-val of_dirname: OpamFilename.Dir.t -> t option
 
+val of_archive : OpamFilename.t -> t option
 (** Guess the package name from an archive file. This function extract
     {i $name} and {i $version} from {i
     /path/to/$name.$version+opam.tar.gz} *)
-val of_archive: OpamFilename.t -> t option
 
+val to_map : Set.t -> Version.Set.t Name.Map.t
 (** Convert a set of pairs to a map [name -> versions] *)
-val to_map: Set.t -> Version.Set.t Name.Map.t
 
+val of_map : Version.Set.t Name.Map.t -> Set.t
 (** The converse of [to_map] *)
-val of_map: Version.Set.t Name.Map.t -> Set.t
 
+val keys : 'a Map.t -> Set.t
 (** Returns the keys in a package map as a package set *)
-val keys: 'a Map.t -> Set.t
 
+val versions_of_packages : Set.t -> Version.Set.t
 (** Extract the versions from a collection of packages *)
-val versions_of_packages: Set.t -> Version.Set.t
 
+val versions_of_name : Set.t -> Name.t -> Version.Set.t
 (** Return the list of versions for a given package *)
-val versions_of_name: Set.t -> Name.t -> Version.Set.t
 
+val names_of_packages : Set.t -> Name.Set.t
 (** Extract the naes from a collection of packages *)
-val names_of_packages: Set.t -> Name.Set.t
 
+val has_name : Set.t -> Name.t -> bool
 (** Returns true if the set contains a package with the given name *)
-val has_name: Set.t -> Name.t -> bool
 
+val packages_of_name : Set.t -> Name.t -> Set.t
 (** Return all the packages with the given name *)
-val packages_of_name: Set.t -> Name.t -> Set.t
-val packages_of_name_map: 'a Map.t -> Name.t -> 'a Map.t
 
+val packages_of_name_map : 'a Map.t -> Name.t -> 'a Map.t
+
+val package_of_name : Set.t -> Name.t -> t
 (** Return a package with the given name *)
-val package_of_name: Set.t -> Name.t -> t
 
+val package_of_name_opt : Set.t -> Name.t -> t option
 (** Return a package with the given name, if any *)
-val package_of_name_opt: Set.t -> Name.t -> t option
 
+val packages_of_names : Set.t -> Name.Set.t -> Set.t
 (** Return all the packages with one of the given names *)
-val packages_of_names: Set.t -> Name.Set.t -> Set.t
 
+val filter_name_out : Set.t -> Name.t -> Set.t
 (** Removes all packages with the given name from a set of packages *)
-val filter_name_out: Set.t -> Name.t -> Set.t
 
+val max_version : Set.t -> Name.t -> t
 (** Return the maximal available version of a package name from a set.
     Raises [Not_found] if no such package available. *)
-val max_version: Set.t -> Name.t -> t
 
+val compare : t -> t -> int
 (** Compare two packages *)
-val compare: t -> t -> int
 
+val equal : t -> t -> bool
 (** Are two packages equal? *)
-val equal: t -> t -> bool
 
+val hash : t -> int
 (** Hash a package *)
-val hash: t -> int
 
+val list : OpamFilename.Dir.t -> Set.t
 (** Return all the package descriptions in a given directory *)
-val list: OpamFilename.Dir.t -> Set.t
 
+val prefixes : OpamFilename.Dir.t -> string option Map.t
 (** Return all the package descriptions in the current directory (and
     their eventual prefixes). *)
-val prefixes: OpamFilename.Dir.t -> string option Map.t
 
 (** {2 Errors} *)
 
+module Graph : OpamParallel.GRAPH with type V.t = t
 (** Parallel executions. *)
-module Graph: OpamParallel.GRAPH with type V.t = t

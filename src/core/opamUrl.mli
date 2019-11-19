@@ -15,65 +15,65 @@ type version_control = [ `git | `darcs | `hg ]
 
 type backend = [ `http | `rsync | version_control ]
 
-val string_of_backend: backend -> string
+val string_of_backend : backend -> string
 
+val backend_of_string : string -> [> backend ]
 (** Tolerates lots of backward compatibility names;
     @raise Failure on unknown protocol *)
-val backend_of_string: string -> [> backend]
 
 type t = {
-  transport: string; (** the part just before '://' *)
-  path: string; (** the part after '://' *)
-  hash: string option; (** the optional branch/ref specification,
+  transport : string;  (** the part just before '://' *)
+  path : string;  (** the part after '://' *)
+  hash : string option;
+      (** the optional branch/ref specification,
                            at the end after a '#' *)
-  backend: backend; (** the backend that opam should use to handle this
+  backend : backend;
+      (** the backend that opam should use to handle this
                         url *)
 }
 
+val parse : ?backend:backend -> ?handle_suffix:bool -> string -> t
 (** Same as [of_string], but allows enforcing the expected backend, and may
     otherwise guess version control from the suffix by default (for e.g.
     https://foo/bar.git). (this should be disabled when parsing from files).
     Note that [handle_suffix] also handles user-name in ssh addresses (e.g.
     "ssh://git@github.com/...") *)
-val parse: ?backend:backend -> ?handle_suffix:bool -> string -> t
 
 include OpamStd.ABSTRACT with type t := t
 
+val empty : t
 (** Dummy filler url *)
-val empty: t
 
+val base_url : t -> string
 (** Returns the url string without the VC part (i.e. "git+foo://bar" returns
     "foo://bar") *)
-val base_url: t -> string
 
+val basename : t -> string
 (** The last part of the url path, e.g. ["http://foo/bar/this"] or
     ["http://that.here/"] *)
-val basename: t -> string
 
+val root : t -> t
 (** Returns the url with all path components but the first one (the hostname)
     dropped, e.g. ["http://some.host/some/path"] becomes ["http://some.host"] *)
-val root: t -> t
 
-val has_trailing_slash: t -> bool
+val has_trailing_slash : t -> bool
 
+val local_dir : t -> OpamFilename.Dir.t option
 (** Check if the URL matches an existing local directory, and return it *)
-val local_dir: t -> OpamFilename.Dir.t option
 
+val local_file : t -> OpamFilename.t option
 (** Check if the URL matches an existing local file, and return it *)
-val local_file: t -> OpamFilename.t option
 
+val guess_version_control : string -> [> version_control ] option
 (** If the given url-string has no 'transport://' specification and corresponds
     to an existing local path, check for version-control clues at that path *)
-val guess_version_control: string -> [> version_control ] option
 
+val map_file_url : (string -> string) -> t -> t
 (** [map_file_url f url] applies [f] to the [path] portion of [url] if
     [transport] is ["file"]. *)
-val map_file_url : (string -> string) -> t -> t
 
-module Op: sig
-
+module Op : sig
+  val ( / ) : t -> string -> t
   (** Appends at the end of an URL path with '/' separator. Gets back to the
       root if the second argument starts with '/' *)
-  val ( / ) : t -> string -> t
-
 end

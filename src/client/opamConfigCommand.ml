@@ -10,155 +10,167 @@
 (**************************************************************************)
 
 let log fmt = OpamConsole.log "CONFIG" fmt
+
 let slog = OpamConsole.slog
 
 open OpamTypes
 open OpamStateTypes
 
 let help t =
-  let (%) s col = OpamConsole.colorise col s in
+  let ( % ) s col = OpamConsole.colorise col s in
   OpamConsole.header_msg "Global opam variables";
   let all_global_vars =
-    List.fold_left (fun acc (v,doc) ->
+    List.fold_left
+      (fun acc (v, doc) ->
         OpamVariable.Map.add (OpamVariable.of_string v) doc acc)
-      OpamVariable.Map.empty
-      OpamPackageVar.global_variable_names
+      OpamVariable.Map.empty OpamPackageVar.global_variable_names
   in
   let all_global_vars =
-    OpamVariable.Map.union (fun _ x -> x)
+    OpamVariable.Map.union
+      (fun _ x -> x)
       all_global_vars
       (OpamVariable.Map.map snd t.switch_global.global_variables)
   in
   let env = OpamPackageVar.resolve t in
-  List.map (fun (var, doc) ->
-      let content =
-        OpamFilter.ident_string env ~default:"" ([],var,None)
-      in
+  List.map
+    (fun (var, doc) ->
+      let content = OpamFilter.ident_string env ~default:"" ([], var, None) in
       let doc =
         if doc = OpamGlobalState.inferred_from_system then
-          match OpamStd.Option.Op.(
+          match
+            OpamStd.Option.Op.(
               OpamVariable.Map.find_opt var t.switch_global.global_variables
-              >>| fst
-              >>= Lazy.force) with
-          | Some c when (OpamVariable.string_of_variable_contents c) <> content ->
-            "Set through local opam config or env"
+              >>| fst >>= Lazy.force)
+          with
+          | Some c when OpamVariable.string_of_variable_contents c <> content ->
+              "Set through local opam config or env"
           | _ -> doc
         else doc
       in
-      [
-        OpamVariable.to_string var % `bold;
-        content % `blue;
-        "#"; doc
-      ])
-    (OpamVariable.Map.bindings all_global_vars) |>
-  OpamStd.Format.align_table |>
-  OpamConsole.print_table stdout ~sep:" ";
+      [ OpamVariable.to_string var % `bold; content % `blue; "#"; doc ])
+    (OpamVariable.Map.bindings all_global_vars)
+  |> OpamStd.Format.align_table
+  |> OpamConsole.print_table stdout ~sep:" ";
 
   OpamConsole.header_msg "Configuration variables from the current switch";
   let global = t.switch_config in
-  List.map (fun stdpath -> [
+  List.map
+    (fun stdpath ->
+      [
         OpamTypesBase.string_of_std_path stdpath % `bold;
-        OpamPath.Switch.get_stdpath
-          t.switch_global.root t.switch global stdpath |>
-        OpamFilename.Dir.to_string |>
-        OpamConsole.colorise `blue
+        OpamPath.Switch.get_stdpath t.switch_global.root t.switch global stdpath
+        |> OpamFilename.Dir.to_string
+        |> OpamConsole.colorise `blue;
       ])
-    OpamTypesBase.all_std_paths @
-  List.map (fun (var,value) -> [
-        OpamVariable.to_string var % `bold;
-        OpamVariable.string_of_variable_contents value % `blue;
-      ])
-    (global.OpamFile.Switch_config.variables) |>
-  OpamStd.Format.align_table |>
-  OpamConsole.print_table stdout ~sep:" ";
+    OpamTypesBase.all_std_paths
+  @ List.map
+      (fun (var, value) ->
+        [
+          OpamVariable.to_string var % `bold;
+          OpamVariable.string_of_variable_contents value % `blue;
+        ])
+      global.OpamFile.Switch_config.variables
+  |> OpamStd.Format.align_table
+  |> OpamConsole.print_table stdout ~sep:" ";
 
   OpamConsole.header_msg "Package variables ('opam config list PKG' to show)";
-  List.map (fun (var, doc) -> [
-        ("PKG:"^var) % `bold;
-        "";
-        "#";doc
-      ])
-    OpamPackageVar.package_variable_names |>
-  OpamStd.Format.align_table |>
-  OpamConsole.print_table stdout ~sep:" "
+  List.map
+    (fun (var, doc) -> [ ("PKG:" ^ var) % `bold; ""; "#"; doc ])
+    OpamPackageVar.package_variable_names
+  |> OpamStd.Format.align_table
+  |> OpamConsole.print_table stdout ~sep:" "
 
 (* List all the available variables *)
 let list gt ns =
   log "config-list";
   OpamSwitchState.with_ `Lock_none gt @@ fun t ->
-  if ns = [] then help t else
-  let list_vars name =
-    if OpamPackage.Name.to_string name = "-" then
-      let conf = t.switch_config in
-      List.map (fun (v,c) ->
-          OpamVariable.Full.global v,
-          OpamVariable.string_of_variable_contents c,
-          "")
-        (conf.OpamFile.Switch_config.variables)
-    else
-    try
-      let nv = OpamSwitchState.get_package t name in
-      let opam = OpamSwitchState.opam t nv in
-      let env = OpamPackageVar.resolve ~opam t in
-      let conf = OpamSwitchState.package_config t name in
-      let pkg_vars =
-        OpamStd.List.filter_map (fun (vname, desc) ->
-            let v = OpamVariable.(Full.create name (of_string vname)) in
-            try
-              let c = OpamFilter.ident_string env (OpamFilter.ident_of_var v) in
-              Some (v, c, desc)
-            with Failure _ -> None)
-          OpamPackageVar.package_variable_names
-      in
-      let conf_vars =
-        List.map (fun (v,c) ->
-            OpamVariable.Full.create name v,
-            OpamVariable.string_of_variable_contents c,
-            "")
-          (OpamFile.Dot_config.bindings conf)
-      in
-      pkg_vars @ conf_vars
-    with Not_found -> []
-  in
-  let vars = List.flatten (List.map list_vars ns) in
-  let (%) s col = OpamConsole.colorise col s in
-  List.map (fun (variable, value, descr) -> [
-        OpamVariable.Full.to_string variable % `bold;
-        value % `blue;
-        if descr = "" then "" else "# "^descr;
-      ]) vars |>
-  OpamStd.Format.align_table |>
-  OpamConsole.print_table stdout ~sep:" "
+  if ns = [] then help t
+  else
+    let list_vars name =
+      if OpamPackage.Name.to_string name = "-" then
+        let conf = t.switch_config in
+        List.map
+          (fun (v, c) ->
+            ( OpamVariable.Full.global v,
+              OpamVariable.string_of_variable_contents c,
+              "" ))
+          conf.OpamFile.Switch_config.variables
+      else
+        try
+          let nv = OpamSwitchState.get_package t name in
+          let opam = OpamSwitchState.opam t nv in
+          let env = OpamPackageVar.resolve ~opam t in
+          let conf = OpamSwitchState.package_config t name in
+          let pkg_vars =
+            OpamStd.List.filter_map
+              (fun (vname, desc) ->
+                let v = OpamVariable.(Full.create name (of_string vname)) in
+                try
+                  let c =
+                    OpamFilter.ident_string env (OpamFilter.ident_of_var v)
+                  in
+                  Some (v, c, desc)
+                with Failure _ -> None)
+              OpamPackageVar.package_variable_names
+          in
+          let conf_vars =
+            List.map
+              (fun (v, c) ->
+                ( OpamVariable.Full.create name v,
+                  OpamVariable.string_of_variable_contents c,
+                  "" ))
+              (OpamFile.Dot_config.bindings conf)
+          in
+          pkg_vars @ conf_vars
+        with Not_found -> []
+    in
+    let vars = List.flatten (List.map list_vars ns) in
+    let ( % ) s col = OpamConsole.colorise col s in
+    List.map
+      (fun (variable, value, descr) ->
+        [
+          OpamVariable.Full.to_string variable % `bold;
+          value % `blue;
+          (if descr = "" then "" else "# " ^ descr);
+        ])
+      vars
+    |> OpamStd.Format.align_table
+    |> OpamConsole.print_table stdout ~sep:" "
 
 let rec print_env = function
   | [] -> ()
   | (k, v, comment) :: r ->
-    if OpamConsole.verbose () then
-      OpamStd.Option.iter (OpamConsole.msg ": %s;\n") comment;
-    if not (List.exists (fun (k1, _, _) -> k = k1) r) || OpamConsole.verbose ()
-    then
-      OpamConsole.msg "%s='%s'; export %s;\n"
-        k (OpamStd.Env.escape_single_quotes v) k;
-    print_env r
+      if OpamConsole.verbose () then
+        OpamStd.Option.iter (OpamConsole.msg ": %s;\n") comment;
+      if
+        (not (List.exists (fun (k1, _, _) -> k = k1) r))
+        || OpamConsole.verbose ()
+      then
+        OpamConsole.msg "%s='%s'; export %s;\n" k
+          (OpamStd.Env.escape_single_quotes v)
+          k;
+      print_env r
 
 let rec print_csh_env = function
   | [] -> ()
   | (k, v, comment) :: r ->
-    if OpamConsole.verbose () then
-      OpamStd.Option.iter (OpamConsole.msg ": %s;\n") comment;
-    if not (List.exists (fun (k1, _, _) -> k = k1) r) || OpamConsole.verbose ()
-    then
-      OpamConsole.msg "setenv %s '%s';\n"
-        k (OpamStd.Env.escape_single_quotes v);
-    print_csh_env r
+      if OpamConsole.verbose () then
+        OpamStd.Option.iter (OpamConsole.msg ": %s;\n") comment;
+      if
+        (not (List.exists (fun (k1, _, _) -> k = k1) r))
+        || OpamConsole.verbose ()
+      then
+        OpamConsole.msg "setenv %s '%s';\n" k
+          (OpamStd.Env.escape_single_quotes v);
+      print_csh_env r
 
 let print_sexp_env env =
   let rec aux = function
     | [] -> ()
     | (k, v, _) :: r ->
-      if not (List.exists (fun (k1, _, _) -> k = k1) r) then
-        OpamConsole.msg "  (%S %S)\n" k v;
-      aux r
+        if not (List.exists (fun (k1, _, _) -> k = k1) r) then
+          OpamConsole.msg "  (%S %S)\n" k v;
+        aux r
   in
   OpamConsole.msg "(\n";
   aux env;
@@ -167,77 +179,74 @@ let print_sexp_env env =
 let rec print_fish_env env =
   let set_arr_cmd k v =
     let v =
-      OpamStd.String.split v ':'
-      |> function
-      | x::v' -> (":"^x)::v'
+      OpamStd.String.split v ':' |> function
+      | x :: v' -> (":" ^ x) :: v'
       | v -> v
     in
     OpamConsole.msg "set -gx %s %s;\n" k
       (OpamStd.List.concat_map " "
          (fun v ->
-            Printf.sprintf "'%s'"
-              (OpamStd.Env.escape_single_quotes ~using_backslashes:true v))
+           Printf.sprintf "'%s'"
+             (OpamStd.Env.escape_single_quotes ~using_backslashes:true v))
          v)
   in
   (* set manpath if and only if fish version >= 2.7 *)
   let manpath_cmd v =
-    OpamConsole.msg "%s" (
-      (* test for existence of `argparse` builtin, introduced in fish 2.7 .
-       * use `grep' instead of `builtin string match' so that old fish versions do not
-       *     produce unwanted error messages on stderr.
-       * use `grep' inside a `/bin/sh' fragment so that nothing is written to stdout or
-       *     stderr if `grep' does not exist. *)
-      "builtin -n | /bin/sh -c 'grep -q \\'^argparse$\\'' 1>/dev/null 2>/dev/null; and "
-    ) ;
-    set_arr_cmd "MANPATH" v in
+    OpamConsole.msg "%s"
+      "builtin -n | /bin/sh -c 'grep -q \\'^argparse$\\'' 1>/dev/null \
+       2>/dev/null; and "
+    (* test for existence of `argparse` builtin, introduced in fish 2.7 .
+     * use `grep' instead of `builtin string match' so that old fish versions do not
+     *     produce unwanted error messages on stderr.
+     * use `grep' inside a `/bin/sh' fragment so that nothing is written to stdout or
+     *     stderr if `grep' does not exist. *);
+    set_arr_cmd "MANPATH" v
+  in
   match env with
   | [] -> ()
   | (k, v, _) :: r ->
-    if not (List.exists (fun (k1, _, _) -> k = k1) r) then
-      (match k with
-       | "PATH" | "CDPATH" ->
-         (* This function assumes that `v` does not include any variable
-          * expansions and that the directory names are written in full. See the
-          * opamState.ml for details *)
-         set_arr_cmd k v
-       | "MANPATH" ->
-         manpath_cmd v
-       | _ ->
-         OpamConsole.msg "set -gx %s '%s';\n"
-           k (OpamStd.Env.escape_single_quotes ~using_backslashes:true v));
-    print_fish_env r
+      ( if not (List.exists (fun (k1, _, _) -> k = k1) r) then
+        match k with
+        | "PATH" | "CDPATH" ->
+            (* This function assumes that `v` does not include any variable
+             * expansions and that the directory names are written in full. See the
+             * opamState.ml for details *)
+            set_arr_cmd k v
+        | "MANPATH" -> manpath_cmd v
+        | _ ->
+            OpamConsole.msg "set -gx %s '%s';\n" k
+              (OpamStd.Env.escape_single_quotes ~using_backslashes:true v) );
+      print_fish_env r
 
 let print_eval_env ~csh ~sexp ~fish env =
-  if sexp then
-    print_sexp_env env
-  else if csh then
-    print_csh_env env
-  else if fish then
-    print_fish_env env
-  else
-    print_env env
+  if sexp then print_sexp_env env
+  else if csh then print_csh_env env
+  else if fish then print_fish_env env
+  else print_env env
 
-let ensure_env_aux ?(set_opamroot=false) ?(set_opamswitch=false) ?(force_path=true) gt switch =
+let ensure_env_aux ?(set_opamroot = false) ?(set_opamswitch = false)
+    ?(force_path = true) gt switch =
   let env_file = OpamPath.Switch.environment gt.root switch in
   if not (OpamFile.exists env_file) then
-    Some (OpamSwitchState.with_ `Lock_none gt @@ fun st ->
-          let upd =
-            OpamEnv.updates ~set_opamroot ~set_opamswitch ~force_path st
+    Some
+      ( OpamSwitchState.with_ `Lock_none gt @@ fun st ->
+        let upd =
+          OpamEnv.updates ~set_opamroot ~set_opamswitch ~force_path st
+        in
+        log "Missing environment file, regenerate it";
+        ( if not OpamCoreConfig.(!r.safe_mode) then
+          let _, st =
+            OpamSwitchState.with_write_lock st @@ fun st ->
+            (OpamFile.Environment.write env_file upd, st)
           in
-          log "Missing environment file, regenerate it";
-          if not (OpamCoreConfig.(!r.safe_mode)) then
-            (let _, st =
-               OpamSwitchState.with_write_lock st @@ fun st ->
-               (OpamFile.Environment.write env_file upd), st
-             in OpamSwitchState.drop st);
-          OpamEnv.add [] upd)
-  else
-    None
+          OpamSwitchState.drop st );
+        OpamEnv.add [] upd )
+  else None
 
 let ensure_env gt switch = ignore (ensure_env_aux gt switch)
 
-let env gt switch ?(set_opamroot=false) ?(set_opamswitch=false)
-    ~csh ~sexp ~fish ~inplace_path =
+let env gt switch ?(set_opamroot = false) ?(set_opamswitch = false) ~csh ~sexp
+    ~fish ~inplace_path =
   log "config-env";
   let opamroot_not_current =
     let current = gt.root in
@@ -248,16 +257,16 @@ let env gt switch ?(set_opamroot=false) ?(set_opamswitch=false)
   in
   let opamswitch_not_current =
     let default =
-      OpamStd.Option.Op.(++)
+      OpamStd.Option.Op.( ++ )
         (OpamStateConfig.get_current_switch_from_cwd gt.root)
         (OpamFile.Config.switch gt.config)
     in
     match OpamStd.Config.env_string "SWITCH" with
     | None ->
-      Some (OpamStateConfig.resolve_local_switch gt.root switch) <> default
+        Some (OpamStateConfig.resolve_local_switch gt.root switch) <> default
     | Some s ->
-      OpamStateConfig.resolve_local_switch gt.root (OpamSwitch.of_string s) <>
-      OpamStateConfig.resolve_local_switch gt.root switch
+        OpamStateConfig.resolve_local_switch gt.root (OpamSwitch.of_string s)
+        <> OpamStateConfig.resolve_local_switch gt.root switch
   in
   if opamroot_not_current && not set_opamroot then
     OpamConsole.note
@@ -268,19 +277,19 @@ let env gt switch ?(set_opamroot=false) ?(set_opamswitch=false)
       (OpamConsole.colorise `bold "OPAMROOT");
   if opamswitch_not_current && not set_opamswitch then
     OpamConsole.note
-      "To make opam select the switch %s in the current shell, add %s or set \
-       %s"
+      "To make opam select the switch %s in the current shell, add %s or set %s"
       (OpamSwitch.to_string switch)
       (OpamConsole.colorise `bold "--set-switch")
       (OpamConsole.colorise `bold "OPAMSWITCH");
   let force_path = not inplace_path in
   let env =
-    match ensure_env_aux ~set_opamroot ~set_opamswitch ~force_path gt switch with
+    match
+      ensure_env_aux ~set_opamroot ~set_opamswitch ~force_path gt switch
+    with
     | Some env -> env
     | None ->
-        OpamEnv.get_opam_raw
-          ~set_opamroot ~set_opamswitch ~force_path
-          gt.root switch
+        OpamEnv.get_opam_raw ~set_opamroot ~set_opamswitch ~force_path gt.root
+          switch
   in
   print_eval_env ~csh ~sexp ~fish env
 
@@ -295,8 +304,10 @@ let expand gt str =
   log "config-expand";
   OpamSwitchState.with_ `Lock_none gt @@ fun st ->
   OpamConsole.msg "%s\n"
-    (OpamFilter.expand_string ~default:(fun _ -> "")
-       (OpamPackageVar.resolve st) str)
+    (OpamFilter.expand_string
+       ~default:(fun _ -> "")
+       (OpamPackageVar.resolve st)
+       str)
 
 let set var value =
   if not (OpamVariable.Full.is_global var) then
@@ -314,21 +325,22 @@ let set var value =
   if oldval = newval then
     OpamConsole.note "No change for \"%s\"" (OpamVariable.to_string var)
   else
-  let () = match oldval, newval with
-    | Some old, Some _ ->
-      OpamConsole.note "Overriding value of \"%s\": was \"%s\""
-        (OpamVariable.to_string var)
-        (OpamVariable.string_of_variable_contents old)
-    | _ -> ()
-  in
-  let variables = config.OpamFile.Switch_config.variables in
-  let variables =
-    match newval with
-    | None -> List.remove_assoc var variables
-    | Some v -> OpamStd.List.update_assoc var v variables
-  in
-  OpamFile.Switch_config.write config_f
-    {config with OpamFile.Switch_config.variables}
+    let () =
+      match (oldval, newval) with
+      | Some old, Some _ ->
+          OpamConsole.note "Overriding value of \"%s\": was \"%s\""
+            (OpamVariable.to_string var)
+            (OpamVariable.string_of_variable_contents old)
+      | _ -> ()
+    in
+    let variables = config.OpamFile.Switch_config.variables in
+    let variables =
+      match newval with
+      | None -> List.remove_assoc var variables
+      | Some v -> OpamStd.List.update_assoc var v variables
+    in
+    OpamFile.Switch_config.write config_f
+      { config with OpamFile.Switch_config.variables }
 
 let set_global var value =
   if not (OpamVariable.Full.is_global var) then
@@ -337,18 +349,20 @@ let set_global var value =
   OpamGlobalState.with_ `Lock_write @@ fun gt ->
   let var = OpamVariable.Full.variable var in
   let config =
-    gt.config |>
-    OpamFile.Config.with_global_variables
-      (let vars =
-         List.filter (fun (k,_,_) -> k <> var)
-           (OpamFile.Config.global_variables gt.config)
-       in
-       match value with
-       | Some v -> (var, S v, "Set through 'opam config set-global'") :: vars
-       | None -> vars) |>
-    OpamFile.Config.with_eval_variables
-      (List.filter (fun (k,_,_) -> k <> var)
-         (OpamFile.Config.eval_variables gt.config))
+    gt.config
+    |> OpamFile.Config.with_global_variables
+         (let vars =
+            List.filter
+              (fun (k, _, _) -> k <> var)
+              (OpamFile.Config.global_variables gt.config)
+          in
+          match value with
+          | Some v -> (var, S v, "Set through 'opam config set-global'") :: vars
+          | None -> vars)
+    |> OpamFile.Config.with_eval_variables
+         (List.filter
+            (fun (k, _, _) -> k <> var)
+            (OpamFile.Config.eval_variables gt.config))
   in
   OpamGlobalState.write { gt with config }
 
@@ -356,18 +370,18 @@ let variable gt v =
   let raw_switch_content =
     match OpamStateConfig.get_switch_opt () with
     | Some switch ->
-      let switch_config =
-        OpamFile.Switch_config.safe_read
-          (OpamPath.Switch.switch_config gt.root switch)
-      in
-      OpamPackageVar.resolve_switch_raw gt switch switch_config v
+        let switch_config =
+          OpamFile.Switch_config.safe_read
+            (OpamPath.Switch.switch_config gt.root switch)
+        in
+        OpamPackageVar.resolve_switch_raw gt switch switch_config v
     | None -> None
   in
   let switch_content =
     match raw_switch_content with
     | None when not (OpamVariable.Full.is_global v) ->
-      OpamSwitchState.with_ `Lock_none gt @@ fun st ->
-      OpamPackageVar.resolve st v
+        OpamSwitchState.with_ `Lock_none gt @@ fun st ->
+        OpamPackageVar.resolve st v
     | rsc -> rsc
   in
   let content =
@@ -376,27 +390,30 @@ let variable gt v =
     | None -> OpamPackageVar.resolve_global gt v
   in
   match content with
-  | Some c -> OpamConsole.msg "%s\n" (OpamVariable.string_of_variable_contents c)
+  | Some c ->
+      OpamConsole.msg "%s\n" (OpamVariable.string_of_variable_contents c)
   | None ->
-    OpamConsole.error_and_exit `Not_found
-      "Variable %s not found"
-      (OpamVariable.Full.to_string v)
-
+      OpamConsole.error_and_exit `Not_found "Variable %s not found"
+        (OpamVariable.Full.to_string v)
 
 let exec gt ?set_opamroot ?set_opamswitch ~inplace_path command =
   log "config-exec command=%a" (slog (String.concat " ")) command;
   OpamSwitchState.with_ `Lock_none gt @@ fun st ->
   let cmd, args =
     match
-      List.map (OpamFilter.expand_string ~default:(fun _ -> "")
-                  (OpamPackageVar.resolve st)) command
+      List.map
+        (OpamFilter.expand_string
+           ~default:(fun _ -> "")
+           (OpamPackageVar.resolve st))
+        command
     with
-    | []        -> OpamSystem.internal_error "Empty command"
-    | h::_ as l -> h, Array.of_list l in
+    | [] -> OpamSystem.internal_error "Empty command"
+    | h :: _ as l -> (h, Array.of_list l)
+  in
   let env =
     OpamTypesBase.env_array
-      (OpamEnv.get_full
-         ?set_opamroot ?set_opamswitch ~force_path:(not inplace_path) st)
+      (OpamEnv.get_full ?set_opamroot ?set_opamswitch
+         ~force_path:(not inplace_path) st)
   in
   match OpamSystem.resolve_command ~env cmd with
   | Some cmd -> raise (OpamStd.Sys.Exec (cmd, args, env))

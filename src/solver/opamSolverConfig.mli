@@ -12,14 +12,14 @@
     initialisation) *)
 
 type t = private {
-  cudf_file: string option;
-  solver: (module OpamCudfSolver.S) Lazy.t;
-  best_effort: bool;
-  solver_preferences_default: string option Lazy.t;
-  solver_preferences_upgrade: string option Lazy.t;
-  solver_preferences_fixup: string option Lazy.t;
-  solver_preferences_best_effort_prefix: string option Lazy.t;
-  solver_timeout: float option;
+  cudf_file : string option;
+  solver : (module OpamCudfSolver.S) Lazy.t;
+  best_effort : bool;
+  solver_preferences_default : string option Lazy.t;
+  solver_preferences_upgrade : string option Lazy.t;
+  solver_preferences_fixup : string option Lazy.t;
+  solver_preferences_best_effort_prefix : string option Lazy.t;
+  solver_timeout : float option;
 }
 
 type 'a options_fun =
@@ -33,13 +33,13 @@ type 'a options_fun =
   ?solver_timeout:float option ->
   'a
 
-include OpamStd.Config.Sig
-  with type t := t
-   and type 'a options_fun := 'a options_fun
+include
+  OpamStd.Config.Sig with type t := t and type 'a options_fun := 'a options_fun
 
-val call_solver: criteria:string -> Cudf.cudf -> Cudf.preamble option * Cudf.universe
+val call_solver :
+  criteria:string -> Cudf.cudf -> Cudf.preamble option * Cudf.universe
 
+val best_effort : unit -> bool
 (** Checks if best_effort was set and is supported *)
-val best_effort: unit -> bool
 
-val criteria: OpamTypes.solver_criteria -> string
+val criteria : OpamTypes.solver_criteria -> string

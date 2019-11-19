@@ -29,119 +29,95 @@ open OpamTypes
     [(rw t :> ro t)].
 *)
 
+type rw = [ `Lock_write ]
 (** Phantom type for readwrite-locked state (ensures that there are no
     concurrent reads or writes) *)
-type rw = [ `Lock_write ]
 
-(** Type for read-locked state (ensures that there are no concurrent writes) *)
 type ro = [ `Lock_read | rw ]
+(** Type for read-locked state (ensures that there are no concurrent writes) *)
 
-(** Type for unlocked state (single file reads should still be ok) *)
 type unlocked = [ `Lock_none | ro ]
+(** Type for unlocked state (single file reads should still be ok) *)
 
-(** The super-type for all lock types *)
 type +'a lock = [< unlocked > `Lock_write ] as 'a
+(** The super-type for all lock types *)
 
-(** Global state corresponding to an opam root and its configuration *)
 type +'lock global_state = {
-  global_lock: OpamSystem.lock;
-
-  root: OpamPath.t;
-  (** The global OPAM root path (caution: this is stored here but some code may
+  global_lock : OpamSystem.lock;
+  root : OpamPath.t;
+      (** The global OPAM root path (caution: this is stored here but some code may
       rely on OpamStateConfig.root_dir ; in other words, multiple root handling
       isn't really supported at the moment) *)
-
-  config: OpamFile.Config.t;
-  (** The main configuration file. A note of caution: this corresponds to the
+  config : OpamFile.Config.t;
+      (** The main configuration file. A note of caution: this corresponds to the
       configuration as loaded from the file: to get the current options, which
       may be overridden through the command-line or environment, see
       OpamStateConfig *)
-
-  global_variables:
+  global_variables :
     (variable_contents option Lazy.t * string) OpamVariable.Map.t;
-  (** A map of variables that have been defined globally, e.g. through
+      (** A map of variables that have been defined globally, e.g. through
       `.opam/config`. They may need evaluation so are stored as lazy values.
       The extra string is the supplied variable documentation *)
-} constraint 'lock = 'lock lock
+}
+  constraint 'lock = 'lock lock
+(** Global state corresponding to an opam root and its configuration *)
 
+type +'lock repos_state = {
+  repos_lock : OpamSystem.lock;
+  repos_global : unlocked global_state;
+  repositories : repository repository_name_map;
+      (** The list of repositories *)
+  repos_definitions : OpamFile.Repo.t repository_name_map;
+      (** The contents of each repo's [repo] file *)
+  repo_opams : OpamFile.OPAM.t package_map repository_name_map;
+      (** All opam files that can be found in the configured repositories *)
+  repos_tmp : (OpamRepositoryName.t, OpamFilename.Dir.t Lazy.t) Hashtbl.t;
+      (** Temporary directories containing the uncompressed contents of the
+      repositories *)
+}
+  constraint 'lock = 'lock lock
 (** State corresponding to the repo/ subdir: all available packages and
     metadata, for each repository. *)
-type +'lock repos_state = {
-  repos_lock: OpamSystem.lock;
 
-  repos_global: unlocked global_state;
-
-  repositories: repository repository_name_map;
-  (** The list of repositories *)
-
-  repos_definitions: OpamFile.Repo.t repository_name_map;
-  (** The contents of each repo's [repo] file *)
-
-  repo_opams: OpamFile.OPAM.t package_map repository_name_map;
-  (** All opam files that can be found in the configured repositories *)
-
-  repos_tmp: (OpamRepositoryName.t, OpamFilename.Dir.t Lazy.t) Hashtbl.t;
-  (** Temporary directories containing the uncompressed contents of the
-      repositories *)
-} constraint 'lock = 'lock lock
-
-(** State of a given switch: options, available and installed packages, etc.*)
 type +'lock switch_state = {
-  switch_lock: OpamSystem.lock;
-
-  switch_global: unlocked global_state;
-
-  switch_repos: unlocked repos_state;
-
-  switch: switch;
-  (** The current active switch *)
-
-  compiler_packages: package_set;
-  (** The packages that form the base of the current compiler *)
-
-  switch_config: OpamFile.Switch_config.t;
-  (** The configuration file for this switch *)
-
-  repos_package_index: OpamFile.OPAM.t package_map;
-  (** Metadata of all packages that could be found in the configured
+  switch_lock : OpamSystem.lock;
+  switch_global : unlocked global_state;
+  switch_repos : unlocked repos_state;
+  switch : switch;  (** The current active switch *)
+  compiler_packages : package_set;
+      (** The packages that form the base of the current compiler *)
+  switch_config : OpamFile.Switch_config.t;
+      (** The configuration file for this switch *)
+  repos_package_index : OpamFile.OPAM.t package_map;
+      (** Metadata of all packages that could be found in the configured
       repositories (ignoring installed or pinned packages) *)
-
-  opams: OpamFile.OPAM.t package_map;
-  (** The metadata of all packages, gathered from repo, local cache and pinning
+  opams : OpamFile.OPAM.t package_map;
+      (** The metadata of all packages, gathered from repo, local cache and pinning
       overlays. This includes URL and descr data (even if they were originally
       in separate files), as well as the original metadata directory (that can
       be used to retrieve the files/ subdir) *)
-
-  conf_files: OpamFile.Dot_config.t name_map;
-  (** The opam-config of installed packages (from
+  conf_files : OpamFile.Dot_config.t name_map;
+      (** The opam-config of installed packages (from
       ".opam-switch/config/pkgname.config") *)
-
-  packages: package_set;
-  (** The set of all known packages *)
-
-  available_packages: package_set Lazy.t;
-  (** The set of available packages, filtered by their [available:] field *)
-
-  pinned: package_set;
-  (** The set of pinned packages (their metadata, including pinning target, is
+  packages : package_set;  (** The set of all known packages *)
+  available_packages : package_set Lazy.t;
+      (** The set of available packages, filtered by their [available:] field *)
+  pinned : package_set;
+      (** The set of pinned packages (their metadata, including pinning target, is
       in [opams]) *)
-
-  installed: package_set;
-  (** The set of all installed packages *)
-
-  installed_opams: OpamFile.OPAM.t package_map;
-  (** The cached metadata of installed packages (may differ from the metadata
+  installed : package_set;  (** The set of all installed packages *)
+  installed_opams : OpamFile.OPAM.t package_map;
+      (** The cached metadata of installed packages (may differ from the metadata
       that is in [opams] for updated packages) *)
-
-  installed_roots: package_set;
-  (** The set of packages explicitly installed by the user. Some of them may
+  installed_roots : package_set;
+      (** The set of packages explicitly installed by the user. Some of them may
       happen not to be installed at some point, but this indicates that the
       user would like them installed. *)
-
-  reinstall: package_set;
-  (** The set of packages which needs to be reinstalled *)
-
+  reinstall : package_set;
+      (** The set of packages which needs to be reinstalled *)
+}
   (* Missing: a cache for
      - switch-global and package variables
      - the solver universe? *)
-} constraint 'lock = 'lock lock
+  constraint 'lock = 'lock lock
+(** State of a given switch: options, available and installed packages, etc.*)

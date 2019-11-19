@@ -13,5 +13,6 @@
 
 (** The sets only contain the short IDs of all the licenses *)
 
-val licenses: OpamStd.String.Set.t
-val exceptions: OpamStd.String.Set.t
+val licenses : OpamStd.String.Set.t
+
+val exceptions : OpamStd.String.Set.t

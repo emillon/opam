@@ -1,7 +1,8 @@
+;;
 #load "unix.cma"
 
 let () =
-  let (prefix, suffix) =
+  let prefix, suffix =
     let c = open_in Sys.argv.(3) in
     let prefix = input_line c in
     let suffix = input_line c in
@@ -15,16 +16,18 @@ let () =
       let elt =
         (* See https://support.microsoft.com/en-us/help/830473 *)
         let l = String.length elt in
-        if l > 8191 then begin
-          Printf.eprintf "Variable %s has length %d which exceeds the maximum of 8191\n%!" env l;
-          exit 1
-        end else
+        if l > 8191 then (
+          Printf.eprintf
+            "Variable %s has length %d which exceeds the maximum of 8191\n%!"
+            env l;
+          exit 1 )
+        else
           let current = Unix.getenv env in
-          if String.length elt + String.length current > 8191 then begin
-            Printf.eprintf "Warning: replacing, rather than prepending %s\n%!" env;
-            elt
-          end else
-            elt ^ current
+          if String.length elt + String.length current > 8191 then (
+            Printf.eprintf "Warning: replacing, rather than prepending %s\n%!"
+              env;
+            elt )
+          else elt ^ current
       in
       let () = Unix.putenv env elt in
       f ()
@@ -32,4 +35,6 @@ let () =
     f ();
     (prefix, suffix)
   in
-  exit (Sys.command (Printf.sprintf "%s%s%s%s" prefix Sys.argv.(1) suffix Sys.argv.(2)))
+  exit
+    (Sys.command
+       (Printf.sprintf "%s%s%s%s" prefix Sys.argv.(1) suffix Sys.argv.(2)))

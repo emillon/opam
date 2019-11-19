@@ -14,9 +14,16 @@
 open OpamTypes
 open OpamStateTypes
 
-val load:
+val load :
   'a lock -> 'b global_state -> 'c repos_state -> switch -> 'a switch_state
 
+val with_ :
+  'a lock ->
+  ?rt:[< unlocked ] repos_state ->
+  ?switch:switch ->
+  [< unlocked ] global_state ->
+  ('a switch_state -> 'b) ->
+  'b
 (** Loads the switch state and calls the given function on it, releasing the
     lock afterwards.
 
@@ -27,36 +34,39 @@ val load:
 
     Additionally, in case of a write lock, a backup is saved and a message is
     printed on restoring if [f] raised an exception and there were changes.  *)
-val with_:
-  'a lock -> ?rt:([< unlocked ] repos_state) -> ?switch:switch ->
-  [< unlocked ] global_state ->
-  ('a switch_state -> 'b) -> 'b
 
+val load_virtual :
+  ?repos_list:repository_name list ->
+  ?avail_default:bool ->
+  'a global_state ->
+  'b repos_state ->
+  unlocked switch_state
 (** Creates a virtual state with nothing installed.
     Availability is computed just from the global state, and [avail_default]
     (default [true]) controls the result when the availability can't be computed
     due to undefined variables.
     Useful for querying and simulating actions when no switch is yet
     configured, or querying packages directly from the repos *)
-val load_virtual:
-  ?repos_list: repository_name list -> ?avail_default: bool ->
-  'a global_state -> 'b repos_state -> unlocked switch_state
 
+val load_selections : 'a global_state -> switch -> switch_selections
 (** Load the switch's state file, without constructing the package maps: much
     faster than loading the full switch state *)
-val load_selections: 'a global_state -> switch -> switch_selections
 
+val compute_available_packages :
+  'a global_state ->
+  switch ->
+  OpamFile.Switch_config.t ->
+  pinned:package_set ->
+  opams:OpamFile.OPAM.t package_map ->
+  package_set
 (** Raw function to compute the availability of all packages, in [opams], given
     the switch configuration and the set of pinned packages. (The result is
     precomputed in global_state.available_packages once the state is loaded) *)
-val compute_available_packages:
-  'a global_state -> switch -> OpamFile.Switch_config.t ->
-  pinned:package_set -> opams:OpamFile.OPAM.t package_map ->
-  package_set
 
+val unlock : 'a switch_state -> unlocked switch_state
 (** Releases any locks on the given switch_state *)
-val unlock: 'a switch_state -> unlocked switch_state
 
+val drop : 'a switch_state -> unit
 (** Releases any locks on the given switch state and then ignores it.
 
     Using [drop st] is equivalent to [ignore (unlock st)],
@@ -64,95 +74,105 @@ val unlock: 'a switch_state -> unlocked switch_state
     where it is not enforced by the type-system
     that the value is unlocked before it is lost.
 *)
-val drop: 'a switch_state -> unit
 
-(** Calls the provided function, ensuring a temporary write lock on the given
-    switch state *)
-val with_write_lock:
-  ?dontblock:bool -> 'a switch_state ->
+val with_write_lock :
+  ?dontblock:bool ->
+  'a switch_state ->
   (rw switch_state -> 'b * rw switch_state) ->
   'b * 'a switch_state
+(** Calls the provided function, ensuring a temporary write lock on the given
+    switch state *)
 
 (** {2 Helpers to access state data} *)
 
+val repos_list : 'a switch_state -> repository_name list
 (** Returns the repositories configured in the current switch or, if none, the
     globally set default. highest priority first. *)
-val repos_list: 'a switch_state -> repository_name list
 
-val selections: 'a switch_state -> switch_selections
+val selections : 'a switch_state -> switch_selections
 
+val opam : 'a switch_state -> package -> OpamFile.OPAM.t
 (** Return the OPAM file for the given package.
     @raise Not_found when appropriate *)
-val opam: 'a switch_state -> package -> OpamFile.OPAM.t
 
+val opam_opt : 'a switch_state -> package -> OpamFile.OPAM.t option
 (** Return the OPAM file, including URL and descr, for the given package, if
     any *)
-val opam_opt: 'a switch_state -> package -> OpamFile.OPAM.t option
 
+val url : 'a switch_state -> package -> OpamFile.URL.t option
 (** Return the URL field for the given package *)
-val url: 'a switch_state -> package -> OpamFile.URL.t option
 
+val primary_url : 'a switch_state -> package -> url option
 (** Returns the primary URL from the URL field of the given package *)
-val primary_url: 'a switch_state -> package -> url option
 
+val descr : 'a switch_state -> package -> OpamFile.Descr.t
 (** Return the descr field for the given package (or an empty descr if none) *)
-val descr: 'a switch_state -> package -> OpamFile.Descr.t
 
+val descr_opt : 'a switch_state -> package -> OpamFile.Descr.t option
 (** Return the descr field for the given package *)
-val descr_opt: 'a switch_state -> package -> OpamFile.Descr.t option
 
+val files : 'a switch_state -> package -> filename list
 (** Returns the full paths of overlay files under the files/ directory *)
-val files: 'a switch_state -> package -> filename list
 
+val package_config : 'a switch_state -> name -> OpamFile.Dot_config.t
 (** Return the installed package's local configuration *)
-val package_config: 'a switch_state -> name -> OpamFile.Dot_config.t
 
+val is_name_installed : 'a switch_state -> name -> bool
 (** Check whether a package name is installed *)
-val is_name_installed: 'a switch_state -> name -> bool
 
+val find_installed_package_by_name : 'a switch_state -> name -> package
 (** Return the installed package with the right name
     @raise Not_found when appropriate *)
-val find_installed_package_by_name: 'a switch_state -> name -> package
 
+val packages_of_atoms : 'a switch_state -> atom list -> package_set
 (** Return all packages satisfying one of the given atoms from a state *)
-val packages_of_atoms: 'a switch_state -> atom list -> package_set
 
+val get_package : 'a switch_state -> name -> package
 (** Gets the current version of package [name]: pinned version, installed
     version, max available version or max existing version, tried in this order.
     @raise Not_found only if there is no package by this name *)
-val get_package: 'a switch_state -> name -> package
 
+val is_dev_package : 'a switch_state -> package -> bool
 (** "dev packages" are any package with an upstream that isn't the usual HTTP,
     and without an archive checksum. These need to be updated from upstream
     independently when installed. It's generally only the case of source-pinned
     packages, but no rule enforces it in opam itself. *)
-val is_dev_package: 'a switch_state -> package -> bool
 
+val is_pinned : 'a switch_state -> name -> bool
 (** Checks if the given package name is pinned *)
-val is_pinned: 'a switch_state -> name -> bool
 
+val is_version_pinned : 'a switch_state -> name -> bool
 (** Checks if the given package is version-pinned, i.e. pinned without
     overlay metadata, and relying on the repo's data *)
-val is_version_pinned: 'a switch_state -> name -> bool
 
+val dev_packages : 'a switch_state -> package_set
 (** The set of all "dev packages" (see [is_dev_package] for a definition) *)
-val dev_packages: 'a switch_state -> package_set
 
+val source_dir : 'a switch_state -> package -> dirname
 (** Returns the local source mirror for the given package
     ([OpamPath.Switch.sources] or [OpamPath.Switch.pinned_package], depending on
     wether it's pinned). *)
-val source_dir: 'a switch_state -> package -> dirname
 
+val depexts : 'a switch_state -> package -> OpamStd.String.Set.t
 (** Returns the set of active external dependencies for the package, computed
     from the values of the system-specific variables *)
-val depexts: 'a switch_state -> package -> OpamStd.String.Set.t
 
+val conflicts_with :
+  'a switch_state -> package_set -> package_set -> package_set
 (** [conflicts_with st subset pkgs] returns all packages declared in conflict
     with at least one element of [subset] within [pkgs], through forward or
     backward conflict definition or common conflict-class. Packages in [subset]
     (all their versions) are excluded from the result. *)
-val conflicts_with: 'a switch_state -> package_set -> package_set -> package_set
 
+val universe :
+  'a switch_state ->
+  ?test:bool ->
+  ?doc:bool ->
+  ?force_dev_deps:bool ->
+  ?reinstall:package_set ->
+  requested:name_set ->
+  user_action ->
+  universe
 (** Put the package data in a form suitable for the solver, pre-computing some
     maps and sets. Packages in the [requested] set are the ones that will get
     affected by the global [build_test] and [build_doc] flags. [test] and [doc],
@@ -160,59 +180,56 @@ val conflicts_with: 'a switch_state -> package_set -> package_set -> package_set
     package not considered current in the universe, and that should therefore be
     reinstalled. If unspecified, it is the packages marked in
     [switch_state.reinstall] that are present in [requested]. *)
-val universe:
-  'a switch_state ->
-  ?test:bool ->
-  ?doc:bool ->
-  ?force_dev_deps:bool ->
-  ?reinstall:package_set ->
-  requested:name_set ->
-  user_action -> universe
 
+val dump_pef_state : 'a switch_state -> out_channel -> unit
 (** Dumps the current switch state in PEF format, for interaction with Dose
     tools *)
-val dump_pef_state: 'a switch_state -> out_channel -> unit
 
 (** {2 Updating} *)
 
+val update_package_metadata :
+  package -> OpamFile.OPAM.t -> 'a switch_state -> 'a switch_state
 (** Sets the given opam file for the given package, updating the other related
     fields along the way *)
-val update_package_metadata:
-  package -> OpamFile.OPAM.t -> 'a switch_state -> 'a switch_state
 
+val remove_package_metadata : package -> 'a switch_state -> 'a switch_state
 (** Removes the metadata associated to the given package, also updating the
     packages and available sets. *)
-val remove_package_metadata: package -> 'a switch_state -> 'a switch_state
 
+val update_pin :
+  package -> OpamFile.OPAM.t -> 'a switch_state -> 'a switch_state
 (** Like [update_package_metadata], but also ensures the package is pinned to
     the given version. The version specified in the opam file, if any, takes
     precedence over the version of [package]. Also marks it for reinstall if
     changed. *)
-val update_pin: package -> OpamFile.OPAM.t -> 'a switch_state -> 'a switch_state
 
+val update_repositories :
+  'a global_state ->
+  (repository_name list -> repository_name list) ->
+  switch ->
+  unit
 (** Updates the selected repositories in the given switch (does not load the
     full switch state, but takes a transient write lock on the switch, so make
     sure not to hold other locks to avoid deadlocks). Sets the switch
     repositories in any case, even if unchanged from the defaults. *)
-val update_repositories:
-  'a global_state -> (repository_name list -> repository_name list) ->
-  switch -> unit
 
 (** {2 User interaction and reporting } *)
 
+val is_switch_globally_set : 'a switch_state -> bool
 (** Returns [true] if the switch of the state is the one set in
     [$OPAMROOT/config], [false] otherwise. This doesn't imply that the switch is
     current w.r.t. either the process or the shell, for that you need to check
     [OpamStateConfig.(!r.switch_from)] *)
-val is_switch_globally_set: 'a switch_state -> bool
 
+val not_found_message : 'a switch_state -> atom -> string
 (** Returns a message about a package or version that couldn't be found *)
-val not_found_message: 'a switch_state -> atom -> string
 
+val unavailable_reason :
+  'a switch_state ->
+  ?default:string ->
+  name * OpamFormula.version_formula ->
+  string
 (** Returns a printable explanation why a package is not currently available
     (pinned to an incompatible version, unmet [available:] constraints...).
     [default] is returned if no reason why it wouldn't be available was found
     (empty string if unspecified). *)
-val unavailable_reason:
-  'a switch_state -> ?default:string -> name * OpamFormula.version_formula ->
-  string

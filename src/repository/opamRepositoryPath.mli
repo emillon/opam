@@ -13,53 +13,53 @@
 
 open OpamTypes
 
+val root : dirname -> repository_name -> dirname
 (** Repository local path: {i $opam/repo/<name>} *)
-val root: dirname -> repository_name -> dirname
 
-val tar: dirname -> repository_name -> filename
+val tar : dirname -> repository_name -> filename
 
+val download_cache : dirname -> dirname
 (** Prefix where to store the downloaded files cache: {i $opam/download-cache}.
     Warning, this is relative to the opam root, not a repository root. *)
-val download_cache: dirname -> dirname
 
+val pin_cache_dir : unit -> dirname
 (** Pin global cache, located in temporary directory, cleaned at end of process *)
-val pin_cache_dir: unit -> dirname
 
+val pin_cache : OpamUrl.t -> dirname
 (** Pin cache for a given download url. *)
-val pin_cache: OpamUrl.t -> dirname
 
+val repo : dirname -> OpamFile.Repo.t OpamFile.t
 (** Return the repo file *)
-val repo: dirname -> OpamFile.Repo.t OpamFile.t
 
+val packages_dir : dirname -> dirname
 (** Packages folder: {i $repo/packages} *)
-val packages_dir: dirname -> dirname
 
+val packages : dirname -> string option -> package -> dirname
 (** Package folder: {i $repo/packages/XXX/$NAME.$VERSION} *)
-val packages: dirname -> string option -> package -> dirname
 
+val opam : dirname -> string option -> package -> OpamFile.OPAM.t OpamFile.t
 (** Return the OPAM file for a given package:
     {i $repo/packages/XXX/$NAME.$VERSION/opam} *)
-val opam: dirname -> string option -> package -> OpamFile.OPAM.t OpamFile.t
 
+val descr : dirname -> string option -> package -> OpamFile.Descr.t OpamFile.t
 (** Return the description file for a given package:
     {i $repo/packages/XXX/$NAME.VERSION/descr} *)
-val descr: dirname -> string option -> package -> OpamFile.Descr.t OpamFile.t
 
+val url : dirname -> string option -> package -> OpamFile.URL.t OpamFile.t
 (** urls {i $repo/package/XXX/$NAME.$VERSION/url} *)
-val url: dirname -> string option -> package -> OpamFile.URL.t OpamFile.t
 
+val files : dirname -> string option -> package -> dirname
 (** files {i $repo/packages/XXX/$NAME.$VERSION/files} *)
-val files: dirname -> string option -> package -> dirname
 
 (** Url constructor for parts of remote repositories, when applicable (http and
     rsync). Function take the repo's root url. *)
-module Remote: sig
+module Remote : sig
+  val repo : url -> url
   (** Remote repo file *)
-  val repo: url -> url
 
+  val packages_url : url -> url
   (** Remote package files: {i $remote/packages} *)
-  val packages_url: url -> url
 
+  val archive : url -> package -> url
   (** Remote archive {i $remote/archives/$NAME.$VERSION.tar.gz} *)
-  val archive: url -> package -> url
 end

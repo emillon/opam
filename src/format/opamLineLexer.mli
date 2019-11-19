@@ -11,4 +11,4 @@
 
 (** A simple lexer to list of lines, which are lists of words *)
 
-val main: Lexing.lexbuf -> string list list
+val main : Lexing.lexbuf -> string list list

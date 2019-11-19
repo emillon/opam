@@ -8,8 +8,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(** uniquely identifies a filesystem item value *)
 type digest
+(** uniquely identifies a filesystem item value *)
 
 (** Defines a change concerning a fs item; The [digest] parameter is the new
     value of the item *)
@@ -17,37 +17,46 @@ type change =
   | Added of digest
   | Removed
   | Contents_changed of digest
-  (** For links, corresponds to a change of target *)
+      (** For links, corresponds to a change of target *)
   | Perm_changed of digest
   | Kind_changed of digest
-  (** Used e.g. when a file is replaced by a directory, a link
+      (** Used e.g. when a file is replaced by a directory, a link
       or a fifo *)
 
 type t = change OpamStd.String.Map.t
 
+val to_string : t -> string
 (** Returns a printable, multi-line string *)
-val to_string: t -> string
 
-val digest_of_string: string -> digest
-val string_of_digest: digest -> string
+val digest_of_string : string -> digest
 
+val string_of_digest : digest -> string
+
+val track :
+  OpamFilename.Dir.t ->
+  ?except:OpamFilename.Base.Set.t ->
+  (unit -> 'a OpamProcess.job) ->
+  ('a * t) OpamProcess.job
 (** Wraps a job to track the changes that happened under [dirname] during its
     execution (changes done by the application of the job function to [()] are
     tracked too, for consistency with jobs without commands) *)
-val track:
-  OpamFilename.Dir.t -> ?except:OpamFilename.Base.Set.t ->
-  (unit -> 'a OpamProcess.job) -> ('a * t) OpamProcess.job
 
+val revert :
+  ?title:string ->
+  ?verbose:bool ->
+  ?force:bool ->
+  ?dryrun:bool ->
+  OpamFilename.Dir.t ->
+  t ->
+  unit
 (** Removes the added and kind-changed items unless their contents changed and
     [force] isn't set, and prints warnings for other changes unless [verbose] is
     set to [false]. Ignores non-existing files.
     [title] is used to prefix messages if specified. *)
-val revert:
-  ?title:string -> ?verbose:bool -> ?force:bool -> ?dryrun:bool ->
-  OpamFilename.Dir.t -> t -> unit
 
+val check :
+  OpamFilename.Dir.t ->
+  t ->
+  (OpamFilename.t * [ `Unchanged | `Removed | `Changed ]) list
 (** Checks the items that were added or kind-changed in the given diff, and
     returns their status *)
-val check:
-  OpamFilename.Dir.t -> t ->
-  (OpamFilename.t * [`Unchanged | `Removed | `Changed]) list
